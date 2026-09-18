@@ -21,3 +21,10 @@ export function channelListPage(channels:Channel[],searching:boolean,expanded:bo
 export function compareChannelSourceCounts(a:Channel,b:Channel){
  return b.sources.length-a.sources.length||compareChannelNames(a.name,b.name);
 }
+
+export function compareLastPlayed(a:Channel,b:Channel,playedAt:Record<string,number>,recent:string[]){
+ const delta=(playedAt[b.id]||0)-(playedAt[a.id]||0);
+ if(delta)return delta;
+ const rank=(id:string)=>{const i=recent.indexOf(id);return i<0?Infinity:i;};
+ return rank(a.id)-rank(b.id)||compareChannelNames(a.name,b.name);
+}

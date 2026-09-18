@@ -65,3 +65,10 @@ test('all-category ordering uses distinct catalog source counts, then existing n
  assert.deepEqual(channelListPage(ordered,false,false,80).visible.map(c=>c.name),['普通台']);
  assert.deepEqual(channelListPage(ordered,false,true,80).visible.map(c=>c.name),['普通台','.CNN','CCTV5','CCTV5+']);
 });
+
+test('local-playable ordering uses actual foreground history, with legacy recent fallback',async()=>{
+ const {compareLastPlayed}=await import('../lib/channel-list');
+ const c=(id:string)=>({id,name:id,title:'',group:'其他',sources:[]});
+ const channels=['CCTV1','older','legacy-old','newer','legacy-new'].map(c);
+ assert.deepEqual(channels.sort((a,b)=>compareLastPlayed(a,b,{older:100,newer:200},['legacy-new','legacy-old'])).map(c=>c.id),['newer','older','legacy-new','legacy-old','CCTV1']);
+});

@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs,TabsList,TabsTrigger } from "@/components/ui/tabs";
 import { Empty,EmptyDescription } from "@/components/ui/empty";
 import { useTV } from "@/lib/use-tv";
-import {channelListPage,compareChannelSourceCounts} from "@/lib/channel-list";
+import {channelListPage,compareChannelSourceCounts,compareLastPlayed} from "@/lib/channel-list";
 import {CATEGORIES,compareCategoryNames} from "@/lib/channel-category";
 import {browserSources,channelDisplayName} from "@/lib/catalog";
 import type { Channel } from "@/lib/catalog";
@@ -42,7 +42,7 @@ export default function Home(){
   if(!matches||tv.prefs.hideFailed&&tv.hasFailed(c))return false;if(tab==="favorites")return tv.prefs.favorites.includes(c.id);if(tab==="recent")return tv.prefs.recent.includes(c.id);
   if(tab==="available")return tv.lastSuccess(c)>Date.now()-24*3600_000&&!tv.isUnavailable(c);
   if(query)return true;return(tv.category==="全部"||c.group===tv.category);
- }).sort((a,b)=>tab==="recent"?tv.prefs.recent.indexOf(a.id)-tv.prefs.recent.indexOf(b.id):tab==="all"&&tv.category==="全部"&&!query.trim()?compareChannelSourceCounts(a,b):compareCategoryNames(a.name,b.name,tab==="all"&&!query?tv.category:"全部"));
+ }).sort((a,b)=>tab==="recent"?tv.prefs.recent.indexOf(a.id)-tv.prefs.recent.indexOf(b.id):tab==="available"?compareLastPlayed(a,b,tv.prefs.lastPlayedAt,tv.prefs.recent):tab==="all"&&tv.category==="全部"&&!query.trim()?compareChannelSourceCounts(a,b):compareCategoryNames(a.name,b.name,tab==="all"&&!query?tv.category:"全部"));
  const channelPage=channelListPage(filtered,!!query.trim(),expanded,visibleCount);
  const suggestions:Channel[]=[];
  const addSuggestion=(c:Channel|undefined)=>{if(c&&suggestions.length<4&&!suggestions.some(item=>item.id===c.id))suggestions.push(c);};
