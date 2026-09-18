@@ -1,5 +1,5 @@
 import {classifyChannel,compareChannelNames} from "./channel-category";
-export type Source = { id: string; url: string };
+export type Source = { id: string; url: string; number?:number };
 export type Channel = { id: string; name: string; title: string; group: string; sources: Source[] };
 export type Catalog = { version: string; syncedAt: number; channels: Channel[]; stale?: boolean; inputs?: string[]; failedInputs?: string[] };
 export const UPSTREAM = "https://raw.githubusercontent.com/CCSH/IPTV/refs/heads/main/live_lite.m3u";

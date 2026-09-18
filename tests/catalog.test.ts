@@ -72,3 +72,18 @@ test('local-playable ordering uses actual foreground history, with legacy recent
  const channels=['CCTV1','older','legacy-old','newer','legacy-new'].map(c);
  assert.deepEqual(channels.sort((a,b)=>compareLastPlayed(a,b,{older:100,newer:200},['legacy-new','legacy-old'])).map(c=>c.id),['newer','older','legacy-new','legacy-old','CCTV1']);
 });
+
+
+test('source numbers survive sorting, reordered imports, removals and hole reuse',async()=>{
+ const {numberSources}=await import('../lib/source-numbers');const {rankedSources}=await import('../lib/shared-health');
+ const make=(urls:string[])=>({id:'c',name:'c',title:'',group:'其他',sources:urls.map(url=>({id:url,url}))});
+ const first=numberSources([make(['a','b','c'])]);
+ const next=numberSources([make(['c','d','a'])],first);
+ assert.deepEqual(next[0].sources.map(s=>[s.id,s.number]),[['c',3],['d',2],['a',1]]);
+ const sorted=rankedSources(next[0].sources,{a:{status:'failed'}},{});
+ assert.equal(sorted.at(-1)?.id,'a');assert.equal(sorted.at(-1)?.number,1);
+ const gap=numberSources([make(['c','a'])],next);
+ assert.deepEqual(gap[0].sources.map(s=>s.number),[3,1]);
+ assert.deepEqual(numberSources([make(['a','e','c','f'])],gap)[0].sources.map(s=>s.number),[1,2,3,4]);
+ assert.deepEqual(numberSources(next)[0].sources,next[0].sources);
+});

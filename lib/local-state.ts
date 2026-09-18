@@ -1,7 +1,7 @@
 import type { Catalog } from "./catalog";
 export type Health={okAt?:number;verifiedLive?:boolean;failedAt?:number;failures:number;until:number};
 export type Unavailable={fingerprint:string;until:number};
-export type LocalState={favorites:string[];recent:string[];lastChannel:string;lastPlayedSources:Record<string,string>;lastPlayedAt:Record<string,number>;autoSwitch:boolean;hideFailed:boolean;health:Record<string,Health>;unavailable:Record<string,Unavailable>;relayVersion?:number};
+export type LocalState={favorites:string[];recent:string[];lastChannel:string;lastPlayedSources:Record<string,string>;lastPlayedAt:Record<string,number>;autoSwitch:boolean;hideFailed:boolean;health:Record<string,Health>;unavailable:Record<string,Unavailable>;playbackVersion?:number;relayVersion?:number};
 export const defaults=():LocalState=>({favorites:[],recent:[],lastChannel:"CCTV5+",lastPlayedSources:{},lastPlayedAt:{},autoSwitch:true,hideFailed:false,health:{},unavailable:{}});
 let dbPromise:Promise<IDBDatabase>|undefined;
 function database(){return dbPromise??=(new Promise((resolve,reject)=>{const r=indexedDB.open("signalscout-tv-runtime",1);r.onupgradeneeded=()=>r.result.createObjectStore("state");r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);}));}

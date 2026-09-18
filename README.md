@@ -66,6 +66,10 @@ npx wrangler d1 execute DB --local \
   --config dist/server/wrangler.json \
   --persist-to .wrangler/state \
   --file drizzle/0001_nervous_oracle.sql
+npx wrangler d1 execute DB --local \
+  --config dist/server/wrangler.json \
+  --persist-to .wrangler/state \
+  --file drizzle/0002_wooden_george_stacy.sql
 ```
 
 启动开发服务：

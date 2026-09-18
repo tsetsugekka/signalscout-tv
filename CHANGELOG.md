@@ -26,3 +26,11 @@
 ## Channel list visibility
 
 - Defer sparse and symbol-prefixed channels behind More; search can still find them. Preserve source-count exceptions for prioritized Phoenix and overseas news channels.
+
+## Mobile playback and source identity
+
+- Start native playback without making browser-fetch access a prerequisite; distinguish unconfirmed playback from verified live success.
+- Give mobile playback priority over background checks.
+- Keep PC and mobile health reports separate, with asymmetric sharing of useful results.
+- Preserve source numbers when availability changes their display order.
+- Add the device health database migration.

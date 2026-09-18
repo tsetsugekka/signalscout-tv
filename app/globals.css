@@ -136,3 +136,6 @@ a{color:inherit;text-decoration:none}button,input{font:inherit}button{color:inhe
 .catalog-notice{flex-basis:100%;margin:0;color:#b7b89e;font-size:12px;line-height:1.6}
 
 .source-unstable .source-result{color:#d6ac64}
+
+.source-device-status{display:flex;gap:12px;padding:0 0 6px 28px;font-size:12px;color:var(--muted-foreground)}
+.source-device-status .device-available{color:#a5c76b}.source-device-status .device-unstable{color:#d69a89}

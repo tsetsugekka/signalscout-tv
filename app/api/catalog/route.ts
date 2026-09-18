@@ -1,3 +1,4 @@
+import {numberSources} from "@/lib/source-numbers";
 import {pruneSharedHealth} from "@/lib/shared-health-store";
 import {invalidateCatalogSources} from "@/lib/relay-state";
 import {loadCatalogFeeds} from "@/lib/catalog-loader";
@@ -26,6 +27,7 @@ export async function GET(request:Request){
     const previous=cached;
     if(!feeds.baseComplete)throw new Error("Base catalog unavailable; retaining last good copy");
     if(catalog.channels.length<10||(previous&&catalog.channels.length<previous.channels.length/2))throw new Error("Incomplete catalog; retaining last good copy");
+    catalog.channels=numberSources(catalog.channels,cached?.channels);
     await writeCachedPayload(CACHE_KEY,catalog,catalog.syncedAt);
     invalidateCatalogSources();
     await pruneSharedHealth(catalog).catch(()=>console.warn("Obsolete shared status cleanup deferred"));

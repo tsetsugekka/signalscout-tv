@@ -1,5 +1,5 @@
 import {browserSources,type Channel} from "./catalog";
-export type SourceCheck={status:"waiting"|"pinging"|"checking"|"available"|"failed"|"blocked"|"unsupported";elapsedMs?:number;connectMs?:number;reason?:string};
+export type SourceCheck={status:"waiting"|"pinging"|"checking"|"available"|"failed"|"blocked"|"unsupported"|"unconfirmed";elapsedMs?:number;connectMs?:number;reason?:string};
 export function initialSourceChecks(channel:Channel):Record<string,SourceCheck>{
  const compatible=new Set(browserSources(channel).map(s=>s.id));
  return Object.fromEntries(channel.sources.map(s=>[s.id,compatible.has(s.id)?{status:"waiting"}:{status:"unsupported",reason:"非直播视频或网页不支持的格式"}]));

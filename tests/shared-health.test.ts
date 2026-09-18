@@ -22,3 +22,29 @@ test('hide failed also hides shared instability, but retains unknown and respect
  assert.equal(sharedSourceVisible({status:'waiting'},undefined,true,now),true);
  assert.equal(sharedSourceVisible(undefined,unstable,false,now),true);
 });
+
+
+test('asymmetric device health: phone failures never demote PC; PC cannot override phone instability',async()=>{
+ const {healthForDevice}=await import('../lib/shared-health');
+ const records={source:{pc:{okAt:now,failedAt:0},mobile:{okAt:0,failedAt:now-1}}};
+ assert.equal(sharedStatus(healthForDevice(records,'pc',now).source,now),'available');
+ assert.equal(sharedStatus(healthForDevice(records,'mobile',now).source,now),'unstable');
+ assert.equal(sharedSourceVisible(undefined,healthForDevice(records,'mobile',now).source,true,now),false);
+ assert.equal(sharedSourceVisible(undefined,healthForDevice(records,'pc',now).source,true,now),true);
+ const phoneOnly={source:{mobile:{okAt:now-2,failedAt:now}}};
+ assert.equal(sharedStatus(healthForDevice(phoneOnly,'pc',now).source,now),'available');
+ assert.equal(sharedStatus(healthForDevice(phoneOnly,'mobile',now).source,now),'unstable');
+ const pcOnly={source:{pc:{okAt:now,failedAt:0}}};
+ assert.equal(sharedStatus(healthForDevice(pcOnly,'mobile',now).source,now),'available');
+ const pcFailure={source:{pc:{okAt:0,failedAt:now},mobile:{okAt:now-1,failedAt:0}}};
+ assert.equal(sharedStatus(healthForDevice(pcFailure,'pc',now).source,now),'unstable');
+ assert.equal(sharedStatus(healthForDevice(pcFailure,'mobile',now).source,now),'available');
+ const expired={source:{pc:{okAt:now,failedAt:0},mobile:{okAt:0,failedAt:now-SHARED_HEALTH_TTL}}};
+ assert.equal(sharedStatus(healthForDevice(expired,'mobile',now).source,now),'available');
+});
+test('device-health snapshots cannot overwrite a newer report and remove expired device entries separately',async()=>{
+ const {mergeDeviceHealth}=await import('../lib/shared-health');
+ const current={s:{pc:{okAt:now,failedAt:0},mobile:{okAt:0,failedAt:now-100}}};
+ const next=mergeDeviceHealth(current,{s:{pc:{okAt:0,failedAt:now-200}}},['s'],now-50);
+ assert.deepEqual(next,{s:{pc:{okAt:now,failedAt:0}}});assert.ok(current.s.mobile);
+});
