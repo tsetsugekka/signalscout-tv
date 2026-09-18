@@ -8,3 +8,5 @@
 - HTTP HLS 转发、重定向、签名子资源、公网地址检查及 D1 分块目录缓存。
 - 线路每页 20 条，手动切换与原始地址入口，收藏、最近观看和移动端布局。
 - 海外置顶顺序为 Bloomberg、CNBC、CNN、BBC、日本；日本名称匹配含“日语”。
+
+- Unify the top-left website logo with the favicon and README icon.
