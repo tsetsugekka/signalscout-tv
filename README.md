@@ -13,7 +13,7 @@ SignalScout TV 是一个面向浏览器的电视直播播放器。它在运行�
 
 | 功能 | 实际行为 |
 | --- | --- |
-| 多源目录 | 先显示已有目录；首次无缓存时先加载 CCSH，再后台补充 TVAPP 的直播目录 |
+| 多源目录 | 先显示已有目录；首次无缓存时先加载基础目录，再后台补充扩展目录 |
 | TXT / M3U | 下载目录正文后解析，支持海外、IPv6 线路；按频道名称合并，按完整地址去重 |
 | 分类与搜索 | 央视、卫视、地方、港澳台、海外、其他、全部；地方指非卫视地方台 |
 | 手动选源 | 显示原始地址、复制／打开入口、连接耗时和检测结果；每页 20 条 |
@@ -103,30 +103,14 @@ NEXT_PUBLIC_SHOW_CATALOG_REFRESH=true
 
 ## 工作原理
 
-```mermaid
-flowchart LR
-    A[CCSH 原始目录] --> C[TXT / M3U 解析]
-    B[TVAPP README 直播源链接] --> D[逐个下载目录正文]
-    D --> C
-    C --> E[频道归一化与地址去重]
-    E --> F[D1 压缩分块缓存]
-    F --> G[浏览器频道库与线路排序]
-    G --> H[当前频道连接检查]
-    H --> I[直播列表推进与视频画面验证]
-    I --> J[播放或尝试下一线路]
-    K[本机历史与线路偏好] --> H
-    I --> R[匿名上报成功或失败]
-    R --> S[D1 共享状态 · 最近 7 天]
-    S --> G
-    G --> U[成功靠前 · 不稳定靠后或隐藏]
-    E --> V[清理已移除源的共享标记]
-    V --> S
-```
+[![SignalScout TV 工作原理：目录汇总、频道库、播放选线、本机偏好与七天共享反馈](public/architecture.png)](https://github.com/tsetsugekka/signalscout-tv)
+
+图中二维码指向本项目开源仓库。
 
 ### 目录更新
 
-- 原始目录来自 CCSH/IPTV 的 `live_lite.m3u` 和 `others.txt`。
-- 扩展目录从 TVAPP README 的“直播源”区域动态发现，读取每个 TXT / M3U 的内容，而不是把目录链接当成播放地址。
+- 基础目录读取 `live_lite.m3u` 和 `others.txt`。
+- 扩展目录从索引文档的“直播源”区域动态发现，读取每个 TXT / M3U 的内容，而不是把目录链接当成播放地址。
 - 缓存有效期为 6 小时，页面自动更新；线上演示默认隐藏手动更新按钮，自托管可按下方配置开启。单个目录更新失败时使用其上次有效内容，避免整个频道库消失。
 - 下载并发和同主机请求间隔有限制；大目录使用压缩分块存储。多个访客同时更新时，其他页面等待更新结果，不重复发起上游导入。
 - 目录更新只处理元数据，不做全频道播放扫描。
@@ -186,8 +170,8 @@ tests/                    自动化测试
 
 ## 来源与第三方组件
 
-- [CCSH/IPTV](https://github.com/CCSH/IPTV)：原始频道目录。
-- [youhunwl/TVAPP](https://github.com/youhunwl/TVAPP)：直播目录索引。
+- [基础频道目录](https://github.com/CCSH/IPTV)：原始频道目录。
+- [扩展目录索引](https://github.com/youhunwl/TVAPP)：直播目录索引。
 - [hls.js](https://github.com/video-dev/hls.js)：浏览器 HLS 播放。
 - [Vinext](https://github.com/cloudflare/vinext)：应用运行与构建。
 
