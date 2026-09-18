@@ -25,3 +25,32 @@ test('large directory cache splits below D1 row limit and reconstructs the exact
 test('Phoenix Legend is not a Phoenix TV regional channel, including old cached groups',async()=>{const {classifyChannel}=await import('../lib/channel-category');assert.equal(classifyChannel('凤凰传奇'),'其他');assert.equal(classifyChannel('凤凰传奇','港澳台'),'其他');for(const name of ['凤凰中文','凤凰资讯台','凤凰香港'])assert.equal(classifyChannel(name),'港澳台');const {mergeChannels}=await import('../lib/catalog');assert.equal(mergeChannels([[{id:'凤凰传奇',name:'凤凰传奇',title:'',group:'港澳台',sources:[{id:'http://example.com/live',url:'http://example.com/live'}]}]])[0].group,'其他');});
 
 test('category pinning uses requested order without moving Phoenix Legend out of other',async()=>{const {compareCategoryNames}=await import('../lib/channel-category');const sorted=(names:string[],category:string)=>names.sort((a,b)=>compareCategoryNames(a,b,category));assert.deepEqual(sorted(['安徽卫视','浙江卫视','湖南卫视','东方卫视','北京卫视'],'卫视'),['北京卫视','东方卫视','湖南卫视','浙江卫视','安徽卫视']);assert.equal(sorted(['翡翠台','凤凰中文'],'港澳台')[0],'凤凰中文');assert.equal(sorted(['上海新闻','北京文艺'],'地方')[0],'北京文艺');assert.deepEqual(sorted(['FOX NEWS','BBC World','CNN','CNBC','Bloomberg','NHK World'],'海外'),['Bloomberg','CNBC','CNN','BBC World','NHK World','FOX NEWS']);assert.equal(sorted(['【US】News','【JP】News'],'海外')[0],'【JP】News');assert.deepEqual(sorted(['其他频道','日语新闻','BBC日本'],'海外'),['BBC日本','日语新闻','其他频道']);assert.deepEqual(sorted(['CCTV6','CCTV5+','CCTV5'],'央视'),['CCTV5','CCTV5+','CCTV6']);});
+
+
+test('default channel list requires three sources except Phoenix and prioritized overseas news',async()=>{
+ const {isPrimaryChannel}=await import('../lib/channel-list');
+ const channel=(name:string,group:string,count:number)=>({id:name,name,title:'',group,sources:Array.from({length:count},(_,i)=>({id:String(i),url:`https://example.com/${i}`}))});
+ for(const [name,group] of [['CCTV5','央视'],['CCTV5+','央视'],['北京卫视','卫视'],['北京新闻','地方'],['NHK','海外'],['日本电视','海外'],['普通频道','其他']]){
+  assert.equal(isPrimaryChannel(channel(name,group,2)),false,name);assert.equal(isPrimaryChannel(channel(name,group,3)),true,name);
+ }
+ for(const [name,group] of [['凤凰中文','港澳台'],['Bloomberg','海外'],['彭博','海外'],['CNBC','海外'],['CNN','海外'],['BBC','海外']])assert.equal(isPrimaryChannel(channel(name,group,1)),true,name);
+ assert.equal(isPrimaryChannel(channel('凤凰传奇','其他',1)),false);
+ for(const prefix of ['.','"',"'",'。','“','★','【'])assert.equal(isPrimaryChannel(channel(prefix+'CNN','海外',5)),false,prefix);
+ assert.equal(isPrimaryChannel(channel('  .CNN','海外',5)),false);
+ assert.equal(isPrimaryChannel(channel('[US] CNN','海外',1)),true);
+ assert.equal(isPrimaryChannel(channel('[JP] NHK','海外',2)),false);
+ assert.equal(isPrimaryChannel(channel('[JP] NHK','海外',3)),true);
+});
+test('more and search reveal deferred channels without changing order inside each group',async()=>{
+ const {channelListPage}=await import('../lib/channel-list');
+ const channels=['.CNN','BBC','NHK','CCTV5'].map((name,i)=>({id:name,name,title:'',group:i<3?'海外':'央视',sources:Array.from({length:i===3?3:1},(_,n)=>({id:String(n),url:`https://example.com/${n}`}))}));
+ const ids=(page:ReturnType<typeof channelListPage>)=>page.visible.map(c=>c.id);
+ assert.deepEqual(ids(channelListPage(channels,false,false,80)),['BBC','CCTV5']);
+ assert.equal(channelListPage(channels,false,false,80).remaining,2);
+ assert.deepEqual(ids(channelListPage(channels,false,true,80)),['BBC','CCTV5','.CNN','NHK']);
+ assert.deepEqual(ids(channelListPage(channels,true,false,80)),channels.map(c=>c.id));
+ const deferred=channels.filter(c=>['.CNN','NHK'].includes(c.id));
+ assert.equal(channelListPage(deferred,false,false,80).remaining,2);
+ assert.deepEqual(ids(channelListPage(deferred,false,true,1)),['.CNN']);
+ assert.equal(channelListPage(deferred,false,true,1).remaining,1);
+});

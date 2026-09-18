@@ -22,3 +22,7 @@
 - Exclude pause/offline/permission events from failure reports and preserve URL identity in reordered pagination.
 
 - Hide manual catalog refresh in the live site by default; document NEXT_PUBLIC_SHOW_CATALOG_REFRESH=true for self-hosted interfaces.
+
+## Channel list visibility
+
+- Defer sparse and symbol-prefixed channels behind More; search can still find them. Preserve source-count exceptions for prioritized Phoenix and overseas news channels.
