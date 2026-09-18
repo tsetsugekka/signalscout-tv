@@ -1,5 +1,5 @@
 import type {Channel} from './catalog';
-import {categoryPriority} from './channel-category';
+import {categoryPriority,compareChannelNames} from './channel-category';
 
 export function isPrimaryChannel(channel:Channel){
  const name=channel.name.trimStart();
@@ -16,4 +16,8 @@ export function channelListPage(channels:Channel[],searching:boolean,expanded:bo
  for(const channel of channels)(isPrimaryChannel(channel)?primary:deferred).push(channel);
  const visible=(expanded?[...primary,...deferred]:primary).slice(0,limit);
  return {visible,remaining:channels.length-visible.length};
+}
+
+export function compareChannelSourceCounts(a:Channel,b:Channel){
+ return b.sources.length-a.sources.length||compareChannelNames(a.name,b.name);
 }

@@ -54,3 +54,14 @@ test('more and search reveal deferred channels without changing order inside eac
  assert.deepEqual(ids(channelListPage(deferred,false,true,1)),['.CNN']);
  assert.equal(channelListPage(deferred,false,true,1).remaining,1);
 });
+
+
+test('all-category ordering uses distinct catalog source counts, then existing name order',async()=>{
+ const {compareChannelSourceCounts,channelListPage}=await import('../lib/channel-list');
+ const {parseTxt,mergeChannels}=await import('../lib/catalog');
+ const channels=mergeChannels([parseTxt('CCTV5,https://example.com/a\nCCTV5,https://example.com/a\nCCTV5+,https://example.com/b\n普通台,https://example.com/c\n普通台,https://example.com/d\n普通台,https://example.com/e\n.CNN,https://example.com/f\n.CNN,https://example.com/g\n.CNN,https://example.com/h\n.CNN,https://example.com/i')]);
+ const ordered=channels.sort(compareChannelSourceCounts);
+ assert.deepEqual(ordered.map(c=>c.name),['.CNN','普通台','CCTV5','CCTV5+']);
+ assert.deepEqual(channelListPage(ordered,false,false,80).visible.map(c=>c.name),['普通台']);
+ assert.deepEqual(channelListPage(ordered,false,true,80).visible.map(c=>c.name),['普通台','.CNN','CCTV5','CCTV5+']);
+});
