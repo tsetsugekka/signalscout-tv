@@ -103,9 +103,9 @@ NEXT_PUBLIC_SHOW_CATALOG_REFRESH=true
 
 ## 工作原理
 
-[![SignalScout TV 工作原理：目录汇总、频道库、播放选线、本机偏好与七天共享反馈](public/architecture.png)](https://github.com/tsetsugekka/signalscout-tv)
+[![SignalScout TV 工作原理：目录汇总、频道库、播放选线、本机偏好与七天共享反馈](public/architecture.png)](public/architecture.svg)
 
-图中二维码指向本项目开源仓库。
+点击图可查看矢量版本；二维码指向本项目仓库。
 
 ### 目录更新
 

@@ -1,0 +1,661 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1560" height="2180" viewBox="0 0 1560 2180" role="img" aria-labelledby="title desc">
+<title id="title">SignalScout TV 系统流程</title><desc id="desc">频道目录导入、当前频道播放验证、匿名七天共享状态的数据流。二维码指向本项目 GitHub 仓库。</desc>
+<defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="none" stroke="#657b80" stroke-width="1.3"/></marker></defs>
+<rect width="1560" height="2180" fill="#f5f7f8"/>
+<text x="48" y="60" font-family="PingFang SC,Heiti SC,sans-serif" font-size="37" fill="#23353d" font-weight="600">SignalScout TV · 系统流程</text>
+<text x="48" y="102" font-family="PingFang SC,Heiti SC,sans-serif" font-size="25" fill="#536870">目录元数据、浏览器播放与共享线路状态</text>
+<rect x="36" y="138" width="1488" height="590" rx="16" fill="#edf2f4" stroke="#dce4e7" stroke-width="1.5"/>
+<text x="64" y="181" font-family="PingFang SC,Heiti SC,sans-serif" font-size="26" fill="#397078" font-weight="600">01</text>
+<text x="118" y="181" font-family="PingFang SC,Heiti SC,sans-serif" font-size="30" fill="#23353d" font-weight="600">目录更新</text>
+<text x="64" y="222" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">首次优先返回基础目录；已有缓存立即返回，扩展目录在后台合并。</text>
+<rect x="66" y="251" width="300" height="110" rx="12" fill="#fff" stroke="#c7d2d6" stroke-width="1.5"/>
+<text x="86" y="289" font-family="PingFang SC,Heiti SC,sans-serif" font-size="27" fill="#23353d" font-weight="600">基础目录</text>
+<text x="86" y="327" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">TXT / M3U 地址</text>
+<rect x="66" y="400" width="300" height="144" rx="12" fill="#fff" stroke="#c7d2d6" stroke-width="1.5"/>
+<text x="86" y="438" font-family="PingFang SC,Heiti SC,sans-serif" font-size="27" fill="#23353d" font-weight="600">扩展目录索引</text>
+<text x="86" y="476" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">读取“直播源”区域</text>
+<text x="86" y="510" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">提取 TXT / M3U 地址</text>
+<rect x="425" y="301" width="292" height="160" rx="12" fill="#fff" stroke="#c7d2d6" stroke-width="1.5"/>
+<text x="445" y="339" font-family="PingFang SC,Heiti SC,sans-serif" font-size="27" fill="#23353d" font-weight="600">下载目录正文</text>
+<text x="445" y="377" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">按主机限制请求频率</text>
+<text x="445" y="411" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">失败保留上次有效正文</text>
+<polyline points="366,306 397,306 397,347 425,347" fill="none" stroke="#657b80" stroke-width="2.4" marker-end="url(#a)"/>
+<polyline points="366,470 397,470 397,416 425,416" fill="none" stroke="#657b80" stroke-width="2.4" marker-end="url(#a)"/>
+<rect x="776" y="301" width="302" height="160" rx="12" fill="#fff" stroke="#c7d2d6" stroke-width="1.5"/>
+<text x="796" y="339" font-family="PingFang SC,Heiti SC,sans-serif" font-size="27" fill="#23353d" font-weight="600">解析与合并</text>
+<text x="796" y="377" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">统一频道名称 / 分类</text>
+<text x="796" y="411" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">按完整源地址去重</text>
+<polyline points="717,380 776,380" fill="none" stroke="#657b80" stroke-width="2.4" marker-end="url(#a)"/>
+<rect x="1137" y="301" width="355" height="160" rx="12" fill="#fff" stroke="#c7d2d6" stroke-width="1.5"/>
+<text x="1157" y="339" font-family="PingFang SC,Heiti SC,sans-serif" font-size="27" fill="#23353d" font-weight="600">D1 目录缓存</text>
+<text x="1157" y="377" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">压缩分块，原子更新</text>
+<text x="1157" y="411" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">保留每个目录的有效数据</text>
+<polyline points="1078,380 1137,380" fill="none" stroke="#657b80" stroke-width="2.4" marker-end="url(#a)"/>
+<rect x="776" y="553" width="716" height="116" rx="12" fill="#fff" stroke="#c7d2d6" stroke-width="1.5"/>
+<text x="796" y="591" font-family="PingFang SC,Heiti SC,sans-serif" font-size="27" fill="#23353d" font-weight="600">浏览器频道库</text>
+<text x="796" y="629" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">后台更新不打断播放；频道 → 多条源地址</text>
+<polyline points="1314,461 1314,553" fill="none" stroke="#657b80" stroke-width="2.4" marker-end="url(#a)"/>
+<text x="66" y="595" font-family="PingFang SC,Heiti SC,sans-serif" font-size="25" fill="#23353d" font-weight="600">目录缓存：6 小时</text>
+<text x="66" y="636" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">并发访问复用更新任务，不重复下载。</text>
+<text x="66" y="675" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">目录导入不扫描各频道播放状态。</text>
+<rect x="36" y="754" width="1488" height="724" rx="16" fill="#edf2f4" stroke="#dce4e7" stroke-width="1.5"/>
+<text x="64" y="797" font-family="PingFang SC,Heiti SC,sans-serif" font-size="26" fill="#397078" font-weight="600">02</text>
+<text x="118" y="797" font-family="PingFang SC,Heiti SC,sans-serif" font-size="30" fill="#23353d" font-weight="600">当前频道的选线与播放</text>
+<text x="64" y="838" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">手动选择优先；自动选线先读取当前频道的共享状态，再按优先级尝试。</text>
+<rect x="66" y="865" width="1426" height="96" rx="12" fill="#e0edef" stroke="#b3cccf" stroke-width="1.5"/>
+<text x="88" y="900" font-family="PingFang SC,Heiti SC,sans-serif" font-size="25" fill="#23353d" font-weight="600">自动选线顺序</text>
+<text x="88" y="940" font-family="PingFang SC,Heiti SC,sans-serif" font-size="27" fill="#23353d">本机上次观看成功 → 其他本机近期成功 → 共享成功 → 未验证 → 不稳定</text>
+<rect x="66" y="1008" width="284" height="149" rx="12" fill="#fff" stroke="#c7d2d6" stroke-width="1.5"/>
+<text x="86" y="1046" font-family="PingFang SC,Heiti SC,sans-serif" font-size="27" fill="#23353d" font-weight="600">取下一条候选线路</text>
+<text x="86" y="1084" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">每轮每条只尝试一次</text>
+<text x="86" y="1118" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">保留完整源地址身份</text>
+<rect x="414" y="1008" width="308" height="149" rx="12" fill="#fff" stroke="#c7d2d6" stroke-width="1.5"/>
+<text x="434" y="1046" font-family="PingFang SC,Heiti SC,sans-serif" font-size="27" fill="#23353d" font-weight="600">HTTP 连通性检查</text>
+<text x="434" y="1084" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">HTTPS：浏览器直连</text>
+<text x="434" y="1118" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">HTTP：本站 HTTPS 转发</text>
+<rect x="786" y="1008" width="328" height="149" rx="12" fill="#fff" stroke="#c7d2d6" stroke-width="1.5"/>
+<text x="806" y="1046" font-family="PingFang SC,Heiti SC,sans-serif" font-size="27" fill="#23353d" font-weight="600">直播与视频验证</text>
+<text x="806" y="1084" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">直播列表持续推进</text>
+<text x="806" y="1118" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">真实视频画面推进 ≥ 2 秒</text>
+<rect x="1178" y="1008" width="314" height="149" rx="12" fill="#fff" stroke="#c7d2d6" stroke-width="1.5"/>
+<text x="1198" y="1046" font-family="PingFang SC,Heiti SC,sans-serif" font-size="27" fill="#23353d" font-weight="600">播放成功</text>
+<text x="1198" y="1084" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">更新本机状态</text>
+<text x="1198" y="1118" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">记录上次观看成功线路</text>
+<polyline points="208,961 208,1008" fill="none" stroke="#657b80" stroke-width="2.4" marker-end="url(#a)"/>
+<polyline points="350,1077 414,1077" fill="none" stroke="#657b80" stroke-width="2.4" marker-end="url(#a)"/>
+<polyline points="722,1077 786,1077" fill="none" stroke="#657b80" stroke-width="2.4" marker-end="url(#a)"/>
+<polyline points="1114,1077 1178,1077" fill="none" stroke="#657b80" stroke-width="2.4" marker-end="url(#a)"/>
+<polyline points="567,1157 567,1231 208,1231 208,1157" fill="none" stroke="#657b80" stroke-width="2.4" marker-end="url(#a)"/>
+<polyline points="950,1157 950,1231 567,1231" fill="none" stroke="#657b80" stroke-width="2.4" marker-end="url(#a)"/>
+<text x="250" y="1211" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#79564d">连接 / 验证失败：尝试下一条</text>
+<polyline points="1335,1157 1335,1280 208,1280 208,1231" fill="none" stroke="#657b80" stroke-width="2.4" marker-end="url(#a)"/>
+<text x="695" y="1266" font-family="PingFang SC,Heiti SC,sans-serif" font-size="22" fill="#79564d">播放中断：先恢复，仍失败且已开启自动换源时切换</text>
+<text x="66" y="1336" font-family="PingFang SC,Heiti SC,sans-serif" font-size="24" fill="#23353d" font-weight="600">转发路径</text>
+<text x="225" y="1336" font-family="PingFang SC,Heiti SC,sans-serif" font-size="22" fill="#536870">目录内入口 → 公网地址校验 → 跟随重定向 → 重写并签名 HLS 子资源 → 流式返回</text>
+<text x="66" y="1386" font-family="PingFang SC,Heiti SC,sans-serif" font-size="24" fill="#23353d" font-weight="600">后台检查</text>
+<text x="225" y="1386" font-family="PingFang SC,Heiti SC,sans-serif" font-size="22" fill="#536870">前台连接稳定后，依次验证当前频道剩余线路；切台取消旧队列，不扫描其他频道。</text>
+<text x="66" y="1436" font-family="PingFang SC,Heiti SC,sans-serif" font-size="24" fill="#23353d" font-weight="600">非失败状态</text>
+<text x="225" y="1436" font-family="PingFang SC,Heiti SC,sans-serif" font-size="22" fill="#536870">暂停、离线、隐藏页面与自动播放权限提示，不记录为源失败。</text>
+<rect x="36" y="1504" width="1488" height="473" rx="16" fill="#edf2f4" stroke="#dce4e7" stroke-width="1.5"/>
+<text x="64" y="1547" font-family="PingFang SC,Heiti SC,sans-serif" font-size="26" fill="#397078" font-weight="600">03</text>
+<text x="118" y="1547" font-family="PingFang SC,Heiti SC,sans-serif" font-size="30" fill="#23353d" font-weight="600">共享状态的写入与读取</text>
+<text x="64" y="1588" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">其他设备的记录用于排序与提示；不会替代本机验证，也不会覆盖本机上次成功线路。</text>
+<rect x="66" y="1616" width="298" height="151" rx="12" fill="#fff" stroke="#c7d2d6" stroke-width="1.5"/>
+<text x="86" y="1654" font-family="PingFang SC,Heiti SC,sans-serif" font-size="27" fill="#23353d" font-weight="600">当前设备验证结果</text>
+<text x="86" y="1692" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">成功：直播与画面通过</text>
+<text x="86" y="1726" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">失败：连接或播放失败</text>
+<rect x="428" y="1616" width="290" height="151" rx="12" fill="#fff" stroke="#c7d2d6" stroke-width="1.5"/>
+<text x="448" y="1654" font-family="PingFang SC,Heiti SC,sans-serif" font-size="27" fill="#23353d" font-weight="600">匿名状态接口</text>
+<text x="448" y="1692" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">只接受目录内源地址</text>
+<text x="448" y="1726" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">提交成功 / 失败结果</text>
+<rect x="782" y="1616" width="310" height="151" rx="12" fill="#fff" stroke="#c7d2d6" stroke-width="1.5"/>
+<text x="802" y="1654" font-family="PingFang SC,Heiti SC,sans-serif" font-size="27" fill="#23353d" font-weight="600">D1 共享记录</text>
+<text x="802" y="1692" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">保存成功 / 失败时间</text>
+<text x="802" y="1726" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">以最近一次结果为准</text>
+<rect x="1156" y="1616" width="336" height="151" rx="12" fill="#fff" stroke="#c7d2d6" stroke-width="1.5"/>
+<text x="1176" y="1654" font-family="PingFang SC,Heiti SC,sans-serif" font-size="27" fill="#23353d" font-weight="600">其他设备选择此频道</text>
+<text x="1176" y="1692" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">读取最近 7 天的结果</text>
+<text x="1176" y="1726" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">参与选线与卡片排序</text>
+<polyline points="364,1691 428,1691" fill="none" stroke="#657b80" stroke-width="2.4" marker-end="url(#a)"/>
+<polyline points="718,1691 782,1691" fill="none" stroke="#657b80" stroke-width="2.4" marker-end="url(#a)"/>
+<polyline points="1092,1691 1156,1691" fill="none" stroke="#657b80" stroke-width="2.4" marker-end="url(#a)"/>
+<text x="66" y="1820" font-family="PingFang SC,Heiti SC,sans-serif" font-size="24" fill="#23353d" font-weight="600">显示规则</text>
+<text x="225" y="1820" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">成功靠前；失败标记“不稳定”并靠后；开启“不显示失效源”也隐藏不稳定。</text>
+<text x="66" y="1872" font-family="PingFang SC,Heiti SC,sans-serif" font-size="24" fill="#23353d" font-weight="600">过期规则</text>
+<text x="225" y="1872" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">超过 7 天 → 未验证；新的成功可恢复之前的不稳定状态。未知线路默认保留。</text>
+<text x="66" y="1924" font-family="PingFang SC,Heiti SC,sans-serif" font-size="24" fill="#23353d" font-weight="600">目录删除</text>
+<text x="225" y="1924" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">有效目录更新确认源已移除 → 清除共享标记；重新收录后重新验证。</text>
+<rect x="1318" y="1998" width="164" height="164" rx="0" fill="#fff" stroke="#fff" stroke-width="1.5"/>
+<rect x="1334" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1338" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1350" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1354" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1370" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1406" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1410" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1418" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1426" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1442" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1458" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2014" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2018" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2018" width="4" height="4" fill="#111"/>
+<rect x="1370" y="2018" width="4" height="4" fill="#111"/>
+<rect x="1378" y="2018" width="4" height="4" fill="#111"/>
+<rect x="1394" y="2018" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2018" width="4" height="4" fill="#111"/>
+<rect x="1406" y="2018" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2018" width="4" height="4" fill="#111"/>
+<rect x="1422" y="2018" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2018" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2018" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2022" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2022" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2022" width="4" height="4" fill="#111"/>
+<rect x="1350" y="2022" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2022" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2022" width="4" height="4" fill="#111"/>
+<rect x="1370" y="2022" width="4" height="4" fill="#111"/>
+<rect x="1390" y="2022" width="4" height="4" fill="#111"/>
+<rect x="1410" y="2022" width="4" height="4" fill="#111"/>
+<rect x="1418" y="2022" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2022" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2022" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2022" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2022" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2022" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2026" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2026" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2026" width="4" height="4" fill="#111"/>
+<rect x="1350" y="2026" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2026" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2026" width="4" height="4" fill="#111"/>
+<rect x="1370" y="2026" width="4" height="4" fill="#111"/>
+<rect x="1378" y="2026" width="4" height="4" fill="#111"/>
+<rect x="1406" y="2026" width="4" height="4" fill="#111"/>
+<rect x="1418" y="2026" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2026" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2026" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2026" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2026" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2026" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1350" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1370" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1382" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1390" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1394" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1418" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1426" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2030" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2034" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2034" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2034" width="4" height="4" fill="#111"/>
+<rect x="1382" y="2034" width="4" height="4" fill="#111"/>
+<rect x="1410" y="2034" width="4" height="4" fill="#111"/>
+<rect x="1430" y="2034" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2034" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2034" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1338" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1350" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1354" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1374" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1382" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1390" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1406" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1422" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1430" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1442" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1458" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2038" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2042" width="4" height="4" fill="#111"/>
+<rect x="1374" y="2042" width="4" height="4" fill="#111"/>
+<rect x="1382" y="2042" width="4" height="4" fill="#111"/>
+<rect x="1390" y="2042" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2042" width="4" height="4" fill="#111"/>
+<rect x="1410" y="2042" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2042" width="4" height="4" fill="#111"/>
+<rect x="1418" y="2042" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2046" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2046" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2046" width="4" height="4" fill="#111"/>
+<rect x="1350" y="2046" width="4" height="4" fill="#111"/>
+<rect x="1354" y="2046" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2046" width="4" height="4" fill="#111"/>
+<rect x="1370" y="2046" width="4" height="4" fill="#111"/>
+<rect x="1374" y="2046" width="4" height="4" fill="#111"/>
+<rect x="1386" y="2046" width="4" height="4" fill="#111"/>
+<rect x="1402" y="2046" width="4" height="4" fill="#111"/>
+<rect x="1410" y="2046" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2046" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2046" width="4" height="4" fill="#111"/>
+<rect x="1442" y="2046" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2046" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2046" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2046" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1350" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1370" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1374" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1378" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1382" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1386" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1402" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1410" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1426" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1442" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2050" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1350" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1354" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1374" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1378" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1382" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1386" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1390" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1394" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1402" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1422" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1430" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1458" y="2054" width="4" height="4" fill="#111"/>
+<rect x="1338" y="2058" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2058" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2058" width="4" height="4" fill="#111"/>
+<rect x="1362" y="2058" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2058" width="4" height="4" fill="#111"/>
+<rect x="1374" y="2058" width="4" height="4" fill="#111"/>
+<rect x="1386" y="2058" width="4" height="4" fill="#111"/>
+<rect x="1402" y="2058" width="4" height="4" fill="#111"/>
+<rect x="1406" y="2058" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2058" width="4" height="4" fill="#111"/>
+<rect x="1430" y="2058" width="4" height="4" fill="#111"/>
+<rect x="1434" y="2058" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2058" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2058" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2058" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2058" width="4" height="4" fill="#111"/>
+<rect x="1458" y="2058" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1338" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1354" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1362" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1374" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1378" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1390" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1418" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1422" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1426" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1434" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1442" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2062" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2066" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2066" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2066" width="4" height="4" fill="#111"/>
+<rect x="1354" y="2066" width="4" height="4" fill="#111"/>
+<rect x="1362" y="2066" width="4" height="4" fill="#111"/>
+<rect x="1378" y="2066" width="4" height="4" fill="#111"/>
+<rect x="1382" y="2066" width="4" height="4" fill="#111"/>
+<rect x="1394" y="2066" width="4" height="4" fill="#111"/>
+<rect x="1406" y="2066" width="4" height="4" fill="#111"/>
+<rect x="1426" y="2066" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2066" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2066" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2066" width="4" height="4" fill="#111"/>
+<rect x="1458" y="2066" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2066" width="4" height="4" fill="#111"/>
+<rect x="1354" y="2070" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2070" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2070" width="4" height="4" fill="#111"/>
+<rect x="1370" y="2070" width="4" height="4" fill="#111"/>
+<rect x="1378" y="2070" width="4" height="4" fill="#111"/>
+<rect x="1386" y="2070" width="4" height="4" fill="#111"/>
+<rect x="1394" y="2070" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2070" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2070" width="4" height="4" fill="#111"/>
+<rect x="1422" y="2070" width="4" height="4" fill="#111"/>
+<rect x="1434" y="2070" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2070" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2070" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2070" width="4" height="4" fill="#111"/>
+<rect x="1458" y="2070" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2074" width="4" height="4" fill="#111"/>
+<rect x="1338" y="2074" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2074" width="4" height="4" fill="#111"/>
+<rect x="1354" y="2074" width="4" height="4" fill="#111"/>
+<rect x="1362" y="2074" width="4" height="4" fill="#111"/>
+<rect x="1374" y="2074" width="4" height="4" fill="#111"/>
+<rect x="1390" y="2074" width="4" height="4" fill="#111"/>
+<rect x="1394" y="2074" width="4" height="4" fill="#111"/>
+<rect x="1406" y="2074" width="4" height="4" fill="#111"/>
+<rect x="1418" y="2074" width="4" height="4" fill="#111"/>
+<rect x="1434" y="2074" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2074" width="4" height="4" fill="#111"/>
+<rect x="1442" y="2074" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2074" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2074" width="4" height="4" fill="#111"/>
+<rect x="1338" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1354" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1362" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1370" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1378" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1382" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1394" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1402" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1422" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1426" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1430" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1434" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1442" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2078" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2082" width="4" height="4" fill="#111"/>
+<rect x="1362" y="2082" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2082" width="4" height="4" fill="#111"/>
+<rect x="1370" y="2082" width="4" height="4" fill="#111"/>
+<rect x="1378" y="2082" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2082" width="4" height="4" fill="#111"/>
+<rect x="1410" y="2082" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2082" width="4" height="4" fill="#111"/>
+<rect x="1418" y="2082" width="4" height="4" fill="#111"/>
+<rect x="1426" y="2082" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2082" width="4" height="4" fill="#111"/>
+<rect x="1442" y="2082" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2082" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2082" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2082" width="4" height="4" fill="#111"/>
+<rect x="1338" y="2086" width="4" height="4" fill="#111"/>
+<rect x="1350" y="2086" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2086" width="4" height="4" fill="#111"/>
+<rect x="1386" y="2086" width="4" height="4" fill="#111"/>
+<rect x="1390" y="2086" width="4" height="4" fill="#111"/>
+<rect x="1394" y="2086" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2086" width="4" height="4" fill="#111"/>
+<rect x="1406" y="2086" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2086" width="4" height="4" fill="#111"/>
+<rect x="1418" y="2086" width="4" height="4" fill="#111"/>
+<rect x="1430" y="2086" width="4" height="4" fill="#111"/>
+<rect x="1434" y="2086" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2086" width="4" height="4" fill="#111"/>
+<rect x="1442" y="2086" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2086" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2086" width="4" height="4" fill="#111"/>
+<rect x="1458" y="2086" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1338" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1374" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1378" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1382" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1386" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1390" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1394" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1410" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1418" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1422" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1434" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1442" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1458" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2090" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2094" width="4" height="4" fill="#111"/>
+<rect x="1350" y="2094" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2094" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2094" width="4" height="4" fill="#111"/>
+<rect x="1378" y="2094" width="4" height="4" fill="#111"/>
+<rect x="1390" y="2094" width="4" height="4" fill="#111"/>
+<rect x="1394" y="2094" width="4" height="4" fill="#111"/>
+<rect x="1406" y="2094" width="4" height="4" fill="#111"/>
+<rect x="1410" y="2094" width="4" height="4" fill="#111"/>
+<rect x="1418" y="2094" width="4" height="4" fill="#111"/>
+<rect x="1430" y="2094" width="4" height="4" fill="#111"/>
+<rect x="1434" y="2094" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2094" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2094" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1338" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1362" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1370" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1374" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1378" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1382" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1394" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1418" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1422" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1426" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1430" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1434" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2098" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2102" width="4" height="4" fill="#111"/>
+<rect x="1354" y="2102" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2102" width="4" height="4" fill="#111"/>
+<rect x="1362" y="2102" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2102" width="4" height="4" fill="#111"/>
+<rect x="1378" y="2102" width="4" height="4" fill="#111"/>
+<rect x="1382" y="2102" width="4" height="4" fill="#111"/>
+<rect x="1386" y="2102" width="4" height="4" fill="#111"/>
+<rect x="1402" y="2102" width="4" height="4" fill="#111"/>
+<rect x="1406" y="2102" width="4" height="4" fill="#111"/>
+<rect x="1410" y="2102" width="4" height="4" fill="#111"/>
+<rect x="1430" y="2102" width="4" height="4" fill="#111"/>
+<rect x="1434" y="2102" width="4" height="4" fill="#111"/>
+<rect x="1442" y="2102" width="4" height="4" fill="#111"/>
+<rect x="1458" y="2102" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2106" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2106" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2106" width="4" height="4" fill="#111"/>
+<rect x="1374" y="2106" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2106" width="4" height="4" fill="#111"/>
+<rect x="1410" y="2106" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2106" width="4" height="4" fill="#111"/>
+<rect x="1418" y="2106" width="4" height="4" fill="#111"/>
+<rect x="1422" y="2106" width="4" height="4" fill="#111"/>
+<rect x="1434" y="2106" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2106" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2106" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2106" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2106" width="4" height="4" fill="#111"/>
+<rect x="1458" y="2106" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1350" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1374" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1378" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1390" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1402" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1410" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1422" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1430" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1434" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1442" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1458" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2110" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2114" width="4" height="4" fill="#111"/>
+<rect x="1382" y="2114" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2114" width="4" height="4" fill="#111"/>
+<rect x="1402" y="2114" width="4" height="4" fill="#111"/>
+<rect x="1410" y="2114" width="4" height="4" fill="#111"/>
+<rect x="1426" y="2114" width="4" height="4" fill="#111"/>
+<rect x="1430" y="2114" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2114" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2114" width="4" height="4" fill="#111"/>
+<rect x="1458" y="2114" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2114" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1338" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1350" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1354" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1370" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1378" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1382" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1386" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1390" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1394" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1402" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1422" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1426" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1430" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1458" y="2118" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2122" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2122" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2122" width="4" height="4" fill="#111"/>
+<rect x="1374" y="2122" width="4" height="4" fill="#111"/>
+<rect x="1382" y="2122" width="4" height="4" fill="#111"/>
+<rect x="1386" y="2122" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2122" width="4" height="4" fill="#111"/>
+<rect x="1402" y="2122" width="4" height="4" fill="#111"/>
+<rect x="1406" y="2122" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2122" width="4" height="4" fill="#111"/>
+<rect x="1426" y="2122" width="4" height="4" fill="#111"/>
+<rect x="1430" y="2122" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2122" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2122" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2122" width="4" height="4" fill="#111"/>
+<rect x="1458" y="2122" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2122" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1350" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1382" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1394" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1410" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1418" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1422" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1430" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1434" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1442" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1458" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2126" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2130" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2130" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2130" width="4" height="4" fill="#111"/>
+<rect x="1350" y="2130" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2130" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2130" width="4" height="4" fill="#111"/>
+<rect x="1374" y="2130" width="4" height="4" fill="#111"/>
+<rect x="1378" y="2130" width="4" height="4" fill="#111"/>
+<rect x="1390" y="2130" width="4" height="4" fill="#111"/>
+<rect x="1394" y="2130" width="4" height="4" fill="#111"/>
+<rect x="1406" y="2130" width="4" height="4" fill="#111"/>
+<rect x="1426" y="2130" width="4" height="4" fill="#111"/>
+<rect x="1430" y="2130" width="4" height="4" fill="#111"/>
+<rect x="1434" y="2130" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2130" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2130" width="4" height="4" fill="#111"/>
+<rect x="1462" y="2130" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2134" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2134" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2134" width="4" height="4" fill="#111"/>
+<rect x="1350" y="2134" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2134" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2134" width="4" height="4" fill="#111"/>
+<rect x="1370" y="2134" width="4" height="4" fill="#111"/>
+<rect x="1374" y="2134" width="4" height="4" fill="#111"/>
+<rect x="1394" y="2134" width="4" height="4" fill="#111"/>
+<rect x="1398" y="2134" width="4" height="4" fill="#111"/>
+<rect x="1414" y="2134" width="4" height="4" fill="#111"/>
+<rect x="1422" y="2134" width="4" height="4" fill="#111"/>
+<rect x="1438" y="2134" width="4" height="4" fill="#111"/>
+<rect x="1442" y="2134" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2134" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2134" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2138" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2138" width="4" height="4" fill="#111"/>
+<rect x="1370" y="2138" width="4" height="4" fill="#111"/>
+<rect x="1374" y="2138" width="4" height="4" fill="#111"/>
+<rect x="1382" y="2138" width="4" height="4" fill="#111"/>
+<rect x="1394" y="2138" width="4" height="4" fill="#111"/>
+<rect x="1418" y="2138" width="4" height="4" fill="#111"/>
+<rect x="1422" y="2138" width="4" height="4" fill="#111"/>
+<rect x="1426" y="2138" width="4" height="4" fill="#111"/>
+<rect x="1434" y="2138" width="4" height="4" fill="#111"/>
+<rect x="1446" y="2138" width="4" height="4" fill="#111"/>
+<rect x="1450" y="2138" width="4" height="4" fill="#111"/>
+<rect x="1454" y="2138" width="4" height="4" fill="#111"/>
+<rect x="1334" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1338" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1342" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1346" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1350" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1354" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1358" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1366" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1370" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1382" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1386" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1394" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1402" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1422" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1426" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1430" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1434" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1442" y="2142" width="4" height="4" fill="#111"/>
+<rect x="1458" y="2142" width="4" height="4" fill="#111"/>
+<text x="48" y="2040" font-family="PingFang SC,Heiti SC,sans-serif" font-size="25" fill="#23353d" font-weight="600">存储边界</text>
+<text x="48" y="2080" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">浏览器：收藏、历史、线路偏好与本机验证结果。</text>
+<text x="48" y="2118" font-family="PingFang SC,Heiti SC,sans-serif" font-size="23" fill="#536870">服务端：目录元数据与匿名线路状态；不录制、不保存视频。</text>
+<text x="872" y="2054" font-family="PingFang SC,Heiti SC,sans-serif" font-size="25" fill="#23353d" font-weight="600">项目仓库</text>
+<text x="872" y="2094" font-family="PingFang SC,Heiti SC,sans-serif" font-size="22" fill="#536870">tsetsugekka/signalscout-tv</text>
+</svg>
