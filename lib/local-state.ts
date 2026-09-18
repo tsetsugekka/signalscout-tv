@@ -1,0 +1,11 @@
+import type { Catalog } from "./catalog";
+export type Health={okAt?:number;verifiedLive?:boolean;failedAt?:number;failures:number;until:number};
+export type Unavailable={fingerprint:string;until:number};
+export type LocalState={favorites:string[];recent:string[];lastChannel:string;lastPlayedSources:Record<string,string>;autoSwitch:boolean;hideFailed:boolean;health:Record<string,Health>;unavailable:Record<string,Unavailable>;relayVersion?:number};
+export const defaults=():LocalState=>({favorites:[],recent:[],lastChannel:"CCTV5+",lastPlayedSources:{},autoSwitch:true,hideFailed:false,health:{},unavailable:{}});
+let dbPromise:Promise<IDBDatabase>|undefined;
+function database(){return dbPromise??=(new Promise((resolve,reject)=>{const r=indexedDB.open("signalscout-tv-runtime",1);r.onupgradeneeded=()=>r.result.createObjectStore("state");r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);}));}
+export async function readLocal<T>(key:string):Promise<T|undefined>{const db=await database();return new Promise((resolve,reject)=>{const r=db.transaction("state").objectStore("state").get(key);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
+export async function writeLocal(key:string,value:LocalState|Catalog){const db=await database();return new Promise<void>((resolve,reject)=>{const tx=db.transaction("state","readwrite");tx.objectStore("state").put(value,key);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});}
+export function recordFailure(state:LocalState,url:string,now=Date.now()) {const old=state.health[url];const failures=(old?.failures||0)+1;state.health[url]={...old,failedAt:now,failures,until:now+[10,30,120][Math.min(failures-1,2)]*60_000};}
+export function recordSuccess(state:LocalState,url:string,now=Date.now()){state.health[url]={okAt:now,verifiedLive:true,failures:0,until:0};}
