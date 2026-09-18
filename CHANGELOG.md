@@ -10,3 +10,5 @@
 - 海外置顶顺序为 Bloomberg、CNBC、CNN、BBC、日本；日本名称匹配含“日语”。
 
 - Unify the top-left website logo with the favicon and README icon.
+
+- Move catalog update notices into the footer beside synchronization controls.
