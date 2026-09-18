@@ -1,11 +1,14 @@
 import {catalogDb} from "@/db/catalog";
 import {readCachedPayload} from "./catalog-cache";
-import {browserSources,CATALOG_CACHE_KEY,type Catalog} from "./catalog";
+import {browserSources,CATALOG_CACHE_KEY,type Catalog,type Channel} from "./catalog";
 import {publicUrl,signingKey,validateAddresses} from "./stream-relay";
 let key:Promise<CryptoKey>|undefined;
 export function relayKey(){return key??=(async()=>{const db=catalogDb();let row=await db.prepare("SELECT payload FROM catalog_cache WHERE key = ?").bind("relay-signing-v1").first<{payload:string}>();if(!row){const secret=[...crypto.getRandomValues(new Uint8Array(32))].map(b=>b.toString(16).padStart(2,"0")).join("");await db.prepare("INSERT OR IGNORE INTO catalog_cache (key,payload,synced_at,checked_at) VALUES (?, ?, 0, 0)").bind("relay-signing-v1",secret).run();row=await db.prepare("SELECT payload FROM catalog_cache WHERE key = ?").bind("relay-signing-v1").first<{payload:string}>();}if(!row)throw new Error("Relay key unavailable");return signingKey(row.payload);})().catch(e=>{key=undefined;throw e;});}
-let catalog:{until:number;sources:Set<string>}|undefined;
-export async function catalogSource(url:string){if(!catalog||catalog.until<Date.now()){const row=await catalogDb().prepare("SELECT payload FROM catalog_cache WHERE key = ? AND synced_at > 0").bind(CATALOG_CACHE_KEY).first<{payload:string}>();if(!row)return false;const data=await readCachedPayload<Catalog>(row.payload);catalog={until:Date.now()+30_000,sources:new Set(data.channels.flatMap(c=>browserSources(c).map(s=>s.url)))};}return catalog.sources.has(url);}
+let catalog:{until:number;sources:Set<string>;channels:Map<string,Channel>}|undefined;
+export function invalidateCatalogSources(){catalog=undefined;}
+async function cachedCatalog(){if(!catalog||catalog.until<Date.now()){const row=await catalogDb().prepare("SELECT payload FROM catalog_cache WHERE key = ? AND synced_at > 0").bind(CATALOG_CACHE_KEY).first<{payload:string}>();if(!row)return undefined;const data=await readCachedPayload<Catalog>(row.payload);catalog={until:Date.now()+30_000,sources:new Set(data.channels.flatMap(c=>browserSources(c).map(s=>s.url))),channels:new Map(data.channels.map(c=>[c.id,c]))};}return catalog;}
+export async function catalogSource(url:string){return (await cachedCatalog())?.sources.has(url)??false;}
+export async function catalogChannel(id:string){return (await cachedCatalog())?.channels.get(id);}
 const hosts=new Map<string,{until:number;addresses:string[]}>();
 // Resolve public names before fetching; no private network bindings or user headers are used.
 export async function checkPublicHost(u:URL,expectedAddress?:string){publicUrl(u.href);const host=u.hostname;if(/^[\d.]+$/.test(host)||host.includes(':'))return;const cached=hosts.get(host);if(cached&&cached.until>Date.now()){validateAddresses(cached.addresses,expectedAddress);return;}

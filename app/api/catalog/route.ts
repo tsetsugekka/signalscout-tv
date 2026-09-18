@@ -1,3 +1,5 @@
+import {pruneSharedHealth} from "@/lib/shared-health-store";
+import {invalidateCatalogSources} from "@/lib/relay-state";
 import {loadCatalogFeeds} from "@/lib/catalog-loader";
 import {catalogDb} from "@/db/catalog";
 import {catalogFromChannels,CATALOG_CACHE_KEY,TVAPP_README,type Catalog} from "@/lib/catalog";
@@ -25,6 +27,8 @@ export async function GET(request:Request){
     if(!feeds.baseComplete)throw new Error("Base catalog unavailable; retaining last good copy");
     if(catalog.channels.length<10||(previous&&catalog.channels.length<previous.channels.length/2))throw new Error("Incomplete catalog; retaining last good copy");
     await writeCachedPayload(CACHE_KEY,catalog,catalog.syncedAt);
+    invalidateCatalogSources();
+    await pruneSharedHealth(catalog).catch(()=>console.warn("Obsolete shared status cleanup deferred"));
     return json({...catalog,origin:"github",refreshNeeded:baseOnly});
    }catch(error){console.error("Catalog refresh failed",error instanceof Error?error.message:"unknown");}
   }

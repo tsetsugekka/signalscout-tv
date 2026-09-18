@@ -12,3 +12,13 @@
 - Unify the top-left website logo with the favicon and README icon.
 
 - Move catalog update notices into the footer beside synchronization controls.
+
+## Shared source availability
+
+- Share anonymous per-source success/failure timestamps after actual playback verification.
+- Prioritize shared successes; mark failures unstable and move them last, with seven-day freshness.
+- Hide shared unstable lines when hide-failed is enabled; preserve unchecked lines and local successful preference.
+- Clear reports when a source disappears from a successful catalog update.
+- Exclude pause/offline/permission events from failure reports and preserve URL identity in reordered pagination.
+
+- Hide manual catalog refresh in the live site by default; document NEXT_PUBLIC_SHOW_CATALOG_REFRESH=true for self-hosted interfaces.
