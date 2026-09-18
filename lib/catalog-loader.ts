@@ -9,7 +9,7 @@ export async function loadCatalogFeeds(resumeImport=false,baseOnly=false){
  const db=catalogDb(),failed:string[]=[],blocked=new Set<string>(),counts=new Map<string,number>(),chains=new Map<string,Promise<unknown>>();
  async function cachedText<T>(url:string,parse:(text:string)=>T){
   const key='feed:'+url,host=new URL(url).hostname;
-  if(resumeImport){const saved=await db.prepare('SELECT payload FROM catalog_cache WHERE key = ? AND synced_at > ?').bind(key,Date.now()-6*3600_000).first<{payload:string}>();if(saved)return parse((await readCachedPayload<SavedFeed>(saved.payload)).text);}
+  if(resumeImport){const saved=await db.prepare('SELECT payload FROM catalog_cache WHERE key = ? AND synced_at > ?').bind(key,Date.now()-3600_000).first<{payload:string}>();if(saved)return parse((await readCachedPayload<SavedFeed>(saved.payload)).text);}
 
   const previous=chains.get(host)||Promise.resolve();
   const task=previous.catch(()=>{}).then(async()=>{

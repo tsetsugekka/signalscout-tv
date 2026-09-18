@@ -34,3 +34,5 @@
 - Keep PC and mobile health reports separate, with asymmetric sharing of useful results.
 - Preserve source numbers when availability changes their display order.
 - Add the device health database migration.
+
+- Reduce GitHub catalog cache freshness from six hours to one hour.

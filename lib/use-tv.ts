@@ -75,7 +75,7 @@ export function useTV(){
    engine.current=new PlayerEngine(video.current,data.current,s=>{if(alive)setPlayback(s);},persist,stopProbe,(id,result)=>{if(alive)updateCheck(id,result);});engine.current.auto=data.current.autoSwitch;engine.current.loadShared=fetchShared;
    setReady(true);video.current.muted=true;void refresh().finally(()=>{if(alive)startInitial();});
   })();
-  const onVisibility=()=>{stopProbe();if(document.visibilityState==="visible"&&navigator.onLine){const e=engine.current;if(e?.current.status==="offline"&&e.channel)e.play(e.channel);if(Date.now()-catalogRef.current.syncedAt>6*3600_000)void refresh();}};
+  const onVisibility=()=>{stopProbe();if(document.visibilityState==="visible"&&navigator.onLine){const e=engine.current;if(e?.current.status==="offline"&&e.channel)e.play(e.channel);if(Date.now()-catalogRef.current.syncedAt>3600_000)void refresh();}};
   const onOffline=()=>{stopProbe();const e=engine.current;if(e&&!["paused","idle","unavailable"].includes(e.current.status))e.emit({...e.current,status:"offline"});};
   const onOnline=()=>{const e=engine.current;if(e?.current.status==="offline"&&e.channel)e.play(e.channel);};
   document.addEventListener("visibilitychange",onVisibility);window.addEventListener("offline",onOffline);window.addEventListener("online",onOnline);
