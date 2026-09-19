@@ -86,3 +86,14 @@
 ## Country-tagged channel visibility
 
 - Exempt 「 alongside [ from leading-punctuation deferral, so 「US」 Bloomberg TV+2 retains its priority. Source-count rules and channel identities remain unchanged.
+
+## Local station classification
+
+- Use a versioned province/prefecture place-name dictionary, including autonomous prefectures, leagues and common short names, instead of a partial city list.
+- Recognize VGA quality prefixes and correct imported local-station categories.
+
+## Channel variants and line quality
+
+- Merge quality-only, ASCII case and whitespace channel variants; preserve distinct CCTV5/CCTV5+ and time-shift suffixes.
+- Retain catalog quality metadata as compact source-card badges, including metadata on duplicate URLs.
+- Normalize cached catalogs, shared-health lookup and saved viewing preferences consistently; preserve canonical source numbers and allocate free numbers for merge collisions.

@@ -1,5 +1,5 @@
 import {classifyChannel,compareChannelNames} from "./channel-category";
-export type Source = { id: string; url: string; number?:number };
+export type Source = { id: string; url: string; number?:number; qualities?:string[] };
 export type Channel = { id: string; name: string; title: string; group: string; sources: Source[] };
 export type Catalog = { version: string; syncedAt: number; channels: Channel[]; stale?: boolean; inputs?: string[]; failedInputs?: string[] };
 export const UPSTREAM = "https://raw.githubusercontent.com/CCSH/IPTV/refs/heads/main/live_lite.m3u";
@@ -12,26 +12,39 @@ export function parseTVAPPFeeds(readme:string){
 }
 export function parseCatalog(text:string){return text.replace(/^\uFEFF/,"").trimStart().startsWith("#EXTM3U")?parsePlaylist(text.replace(/^\uFEFF/,"")):parseTxt(text);}
 const titles: Record<string,string> = {CCTV1:"综合",CCTV2:"财经",CCTV3:"综艺",CCTV4:"中文国际",CCTV5:"体育","CCTV5+":"体育赛事",CCTV6:"电影",CCTV7:"国防军事",CCTV8:"电视剧",CCTV9:"纪录",CCTV10:"科教",CCTV11:"戏曲",CCTV12:"社会与法",CCTV13:"新闻",CCTV14:"少儿",CCTV15:"音乐",CCTV16:"奥林匹克",CCTV17:"农业农村",CCTV4K:"超高清"};
+export function channelQuality(name:string){
+ const qualities:string[]=[];const add=(tag:string)=>{const label=tag.toUpperCase().replace(/^(\d+)([IP])$/,(_,n,mode)=>n+mode.toLowerCase());if(!qualities.includes(label))qualities.push(label);};
+ let value=name.trim().replace(/[\[【（(](HD|FHD|UHD|SD|VGA|[248]K|\d{3,4}[ip]|超高清|高清|超清|标清|蓝光)[\]】）)]/gi,(_,tag)=>{add(tag);return '';}).trim();
+ // BD can mean Bangladesh; only remove it for an identifiable station name.
+ if(/^\[BD\]/i.test(value)&&classifyChannel(value.slice(4))!=="其他"){add('BD');value=value.slice(4).trim();}
+ if(!/^CCTV[48]K(?:超高清)?$/i.test(value))value=value.replace(/(HD|FHD|UHD|SD|VGA|[248]K|\d{3,4}[ip]|超高清|高清|超清)$/i,(_,tag)=>{add(tag);return '';}).trim();
+ return {name:value||name.trim(),qualities};
+}
+function withQuality(source:Source,qualities:string[]):Source{const merged=[...new Set([...(source.qualities||[]),...qualities])];return merged.length?{...source,qualities:merged}:source;}
 export function normalizeName(name:string){
- let value=name.trim().replace(/^CCTV[-\s]*(\d+)\s*(PLUS|＋|\+)/i,"CCTV$1+").replace(/^CCTV[-\s]*(\d+)/i,"CCTV$1").replace(/(?:高清|超清|HD|FHD)$/i,"").trim();
+ let value=channelQuality(name).name;
+ value=value.replace(/^CCTV[-\s]*(\d+)\s*(PLUS|＋|\+)/i,"CCTV$1+").replace(/^CCTV[-\s]*(\d+)/i,"CCTV$1").trim();
  value=value.replace(/[-–—\s]+卫视/,"卫视").replace(/卫视[-–—]NPTV$/i,"卫视");
  if(/^CCTV/i.test(value))value=value.replace(/[（(](?:\d{3,4}[ip]|HD|FHD|高清|超清)[）)]$/i,"").trim();
  for(const [code,title] of Object.entries(titles))if(value===code||value===code+title||value===code+"-"+title||value===code+" "+title)return code;
  return value;
 }
+export function channelIdentity(name:string){return normalizeName(name).replace(/\s/g,"").replace(/[a-z]/g,letter=>letter.toUpperCase());}
+function preferDisplayName(current:Channel,name:string){if(name===channelIdentity(name)&&current.name!==current.id){current.name=name;current.title=titles[name]||name;}}
 export function channelDisplayName(channel:Channel){const title=titles[channel.name];return title?channel.name+title:channel.title===channel.name?channel.name:channel.name+channel.title;}
 
 export function parsePlaylist(text:string): Channel[]{
  if(!text.trimStart().startsWith("#EXTM3U"))throw new Error("Invalid M3U header");
- const channels=new Map<string,Channel>(); let name="", group="";
+ const channels=new Map<string,Channel>(); let name="", group="",qualities:string[]=[];
  for(const raw of text.split(/\r?\n/)){
   const line=raw.trim();
-  if(line.startsWith("#EXTINF:")){name=normalizeName(line.slice(line.lastIndexOf(",")+1));group=line.match(/group-title="([^"]*)"/)?.[1]||"其他";continue;}
+  if(line.startsWith("#EXTINF:")){const rawName=line.slice(line.lastIndexOf(",")+1);name=normalizeName(rawName);qualities=channelQuality(rawName).qualities;group=line.match(/group-title="([^"]*)"/)?.[1]||"其他";continue;}
   if(!line||line.startsWith("#")||!name)continue;
   if(group==="更新时间"){name="";continue;}
   try{const url=new URL(line);if(!["https:","http:"].includes(url.protocol)||url.username||url.password){name="";continue;}}catch{name="";continue;}
-  const id=name;const channel=channels.get(id)||{id,name,title:titles[name]||name,group:classifyChannel(name,group),sources:[]};
-  if(!channel.sources.some(s=>s.url===line))channel.sources.push({id:line,url:line});channels.set(id,channel);name="";
+  const id=channelIdentity(name);const channel=channels.get(id)||{id,name,title:titles[name]||name,group:classifyChannel(name,group),sources:[]};
+  preferDisplayName(channel,name);
+  const existing=channel.sources.find(s=>s.url===line);if(existing)Object.assign(existing,withQuality(existing,qualities));else channel.sources.push(withQuality({id:line,url:line},qualities));channels.set(id,channel);name="";
  }
  const result=[...channels.values()].sort((a,b)=>compareChannelNames(a.name,b.name));
  if(!result.length)throw new Error("Empty playlist");return result;
@@ -50,12 +63,13 @@ export function parseTxt(text:string):Channel[]{
  return parsePlaylist(entries.join("\n"));
 }
 export function channelMerger(){
- const map=new Map<string,Channel>();const urls=new Map<string,Set<string>>();
+ const map=new Map<string,Channel>();const urls=new Map<string,Map<string,Source>>();
  const add=(list:Channel[])=>{for(const original of list){
-  const name=normalizeName(original.name);const channel={...original,id:name,name,title:titles[name]||name,group:classifyChannel(name,original.group)};
-  let entry=map.get(channel.id);if(!entry){entry={...channel,sources:[]};map.set(channel.id,entry);urls.set(channel.id,new Set());}
-  const seen=urls.get(channel.id)!;
-  for(const source of channel.sources)if(!seen.has(source.url)){entry.sources.push(source);seen.add(source.url);}
+  const name=normalizeName(original.name);const channel={...original,id:channelIdentity(name),name,title:titles[name]||name,group:classifyChannel(name,original.group)};
+  let entry=map.get(channel.id);if(!entry){entry={...channel,sources:[]};map.set(channel.id,entry);urls.set(channel.id,new Map());}
+  preferDisplayName(entry,name);
+  const seen=urls.get(channel.id)!,qualities=channelQuality(original.name).qualities;
+  for(const source of channel.sources){const tagged=withQuality(source,qualities),existing=seen.get(source.url);if(existing)Object.assign(existing,withQuality(existing,tagged.qualities||[]));else{const copy={...tagged};entry.sources.push(copy);seen.set(source.url,copy);}}
  }
  };return {add,values:()=>[...map.values()].sort((a,b)=>compareChannelNames(a.name,b.name))};
 }

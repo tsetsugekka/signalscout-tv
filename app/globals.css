@@ -148,3 +148,5 @@ a{color:inherit;text-decoration:none}button,input{font:inherit}button{color:inhe
 .source-row{position:relative}.source-choice label::after{content:"";position:absolute;inset:0;z-index:1;border-radius:8px;cursor:pointer}.source-row:has([role=radio]:disabled) label::after{cursor:not-allowed}.source-row:focus-within{outline:1px solid #778d50;outline-offset:2px}
 
 .source-device-status .source-endpoint{color:#919d93;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.source-quality{display:inline-flex;align-items:center;padding:1px 5px;border:1px solid #424c48;border-radius:4px;background:#242c29;color:#b8c5be;font-size:10px;font-weight:500;line-height:1.5;white-space:nowrap}

@@ -130,10 +130,10 @@ test('quality metadata preserves satellite, national and foreign identities with
  assert.equal(categoryPriority('[HD]BS-TBS','海外'),4);
 });
 
-test('cached quality-tagged channels are reclassified without changing IDs, source numbers or URLs',async()=>{
+test('cached quality-tagged channels merge under clean names while retaining source quality and numbering',async()=>{
  const {mergeChannels}=await import('../lib/catalog');const source={id:'http://example.com/live',url:'http://example.com/live',number:15};
  const c=mergeChannels([[{id:'[HD]东莞新闻综合',name:'[HD]东莞新闻综合',title:'',group:'其他',sources:[source]}]])[0];
- assert.equal(c.group,'地方');assert.equal(c.id,'[HD]东莞新闻综合');assert.equal(c.name,'[HD]东莞新闻综合');assert.deepEqual(c.sources,[source]);
+ assert.equal(c.group,'地方');assert.equal(c.id,'东莞新闻综合');assert.equal(c.name,'东莞新闻综合');assert.deepEqual(c.sources,[{...source,qualities:['HD']}]);
 });
 
 test('Japan has its own filter while remaining overseas without a Japan-only pin; Taiwan label includes Macau',async()=>{
@@ -194,4 +194,44 @@ test('corner bracket prefixes are exempt like square brackets without exempting 
  const sorted=[make('CNN'),target,make('CNBC'),make('BBC'),make('普通频道',3)].sort((a,b)=>compareCategoryNames(a.name,b.name,'海外'));
  assert.deepEqual(channelListPage(sorted,false,false,80).visible.map(c=>c.name),['「US」 Bloomberg TV+2','CNBC','CNN','BBC','普通频道']);
  assert.equal(target.name,'「US」 Bloomberg TV+2');
+});
+
+test('province and prefecture dictionary classifies quality-tagged local stations across China',async()=>{
+ const {classifyChannel}=await import('../lib/channel-category');
+ const provinces='北京 天津 河北 山西 内蒙古 辽宁 吉林 黑龙江 上海 江苏 浙江 安徽 福建 江西 山东 河南 湖北 湖南 广东 广西 海南 重庆 四川 贵州 云南 西藏 陕西 甘肃 青海 宁夏 新疆'.split(' ');
+ for(const name of provinces)assert.equal(classifyChannel(`[VGA]${name}新闻`,'海外'),'地方',name);
+ const places=['东莞','哈尔滨','衡阳','嘉兴','邢台','吕梁','巴彦淖尔','辽源','绥化','宿州','三明','吉安','聊城','信阳','随州','益阳','贺州','儋州','巴中','毕节','临沧','日喀则','汉中','陇南','海东','中卫','哈密','大兴安岭','锡林郭勒','阿拉善','阿坝','阿坝藏族羌族自治州','黔东南','西双版纳','海西','博尔塔拉','克孜勒苏','伊犁','济源','仙桃','石河子','睢宁','辉南'];
+ for(const name of places)assert.equal(classifyChannel(`[VGA]${name}新闻综合`),'地方',name);
+ for(const [name,expected] of [['[VGA]湖南卫视','卫视'],['[VGA]东方卫视','卫视'],['[VGA]CCTV5+','央视'],['[VGA]凤凰中文','港澳台'],['[VGA]海绵宝宝','其他'],['[VGA]凤凰传奇','其他'],['[VGA][US]ABC News','海外']])assert.equal(classifyChannel(name),expected,name);
+});
+
+test('quality, case and whitespace aliases merge while all URLs and quality labels survive',async()=>{
+ const {parseTxt,mergeChannels,channelIdentity,channelQuality}=await import('../lib/catalog');
+ const list=parseTxt('[BD]cnbc,https://example.com/a\nCNBC,https://example.com/b\nCNBC (720p),https://example.com/c\nCNBC (1080p),https://example.com/a\n[HD]北京卫视,https://example.com/d\n北京卫视4K,https://example.com/e\n9X Jalwa (1080p),https://example.com/f\n9XJalwa,https://example.com/g');
+ assert.equal(list.length,3);const cnbc=list.find(c=>c.id==='CNBC')!;assert.equal(cnbc.name,'CNBC');assert.equal(cnbc.sources.length,3);assert.deepEqual(cnbc.sources[0].qualities,['BD','1080p']);assert.equal(cnbc.sources[1].qualities,undefined);assert.deepEqual(cnbc.sources[2].qualities,['720p']);
+ assert.deepEqual(list.find(c=>c.id==='北京卫视')?.sources.map(s=>s.qualities),[['HD'],['4K']]);
+ assert.equal(list.find(c=>c.id==='9XJALWA')?.sources.length,2);
+ for(const name of ['[VGA]东莞综合','东莞综合 (1080p)','东莞综合720p'])assert.equal(channelIdentity(name),'东莞综合');
+ assert.notEqual(channelIdentity('CCTV5'),channelIdentity('CCTV5+'));assert.notEqual(channelIdentity('Bloomberg TV+1'),channelIdentity('Bloomberg TV+2'));assert.equal(channelIdentity('CCTV4K'),'CCTV4K');assert.equal(channelIdentity('CCTV4K超高清'),'CCTV4K');assert.equal(channelIdentity('北京卫视超高清'),'北京卫视');assert.notEqual(channelIdentity('[BD]Bangla TV'),channelIdentity('Bangla TV'));assert.notEqual(channelIdentity('CNBC Asia'),channelIdentity('CNBC Europe'));
+ assert.deepEqual(channelQuality('[hd]台 (1080P)'),{name:'台',qualities:['HD','1080p']});
+ const cached=mergeChannels([[{id:'[HD]cnbc',name:'[HD]cnbc',title:'',group:'其他',sources:[{id:'https://example.com/a',url:'https://example.com/a',number:8}]}],list]);
+ assert.deepEqual(cached.find(c=>c.id==='CNBC')?.sources[0].qualities,['HD','BD','1080p']);
+ assert.deepEqual(mergeChannels([cached]),cached);
+});
+
+test('merged source groups keep canonical numbers, resolve collisions and survive future reordering',async()=>{
+ const {mergeChannels}=await import('../lib/catalog');const {numberSources}=await import('../lib/source-numbers');
+ const make=(name:string,url:string,number:number)=>({id:name,name,title:name,group:'其他',sources:[{id:url,url,number}]});
+ const old=[make('[HD]cnbc','https://a.example/live',1),make('CNBC','https://b.example/live',1),make('CNBC (720p)','https://c.example/live',8)];
+ const merged=numberSources(mergeChannels([old]),old);assert.equal(merged.length,1);
+ assert.deepEqual(Object.fromEntries(merged[0].sources.map(s=>[s.url,s.number])),{'https://a.example/live':2,'https://b.example/live':1,'https://c.example/live':8});
+ const reordered=numberSources([{...merged[0],sources:[...merged[0].sources].reverse()}],merged);
+ assert.deepEqual(Object.fromEntries(reordered[0].sources.map(s=>[s.url,s.number])),Object.fromEntries(merged[0].sources.map(s=>[s.url,s.number])));
+});
+
+test('merged aliases preserve local viewing history and resolve old encoded channel links',async()=>{
+ const {defaults,normalizeLocalChannels}=await import('../lib/local-state');const {parseTxt}=await import('../lib/catalog');const {channelLinkKey,resolvePlaybackLink}=await import('../lib/channel-links');
+ const saved=defaults();saved.favorites=['[HD]cnbc','CNBC'];saved.recent=['CNBC (720p)','[HD]cnbc'];saved.lastChannel='CNBC (720p)';saved.lastPlayedAt={'[HD]cnbc':10,'CNBC (720p)':20};saved.lastPlayedSources={'[HD]cnbc':'old','CNBC (720p)':'new'};const next=normalizeLocalChannels(saved);
+ assert.deepEqual(next.favorites,['CNBC']);assert.deepEqual(next.recent,['CNBC']);assert.deepEqual(next.lastPlayedAt,{CNBC:20});assert.deepEqual(next.lastPlayedSources,{CNBC:'new'});assert.equal(next.lastChannel,'CNBC');assert.equal(next.health,saved.health);
+ const c=parseTxt('CNBC,https://example.com/live');assert.equal(resolvePlaybackLink(c,{channel:channelLinkKey('[BD]cnbc')},true).channel?.id,'CNBC');
 });

@@ -1,5 +1,5 @@
 import type {SourceCheck} from "./source-checks";
-import type { Catalog } from "./catalog";
+import {channelIdentity,type Catalog} from "./catalog";
 export type Health={okAt?:number;verifiedLive?:boolean;failedAt?:number;failures:number;until:number};
 export type Unavailable={fingerprint:string;until:number};
 export type SourceFilter='all'|'priority'|'hide-failed';
@@ -16,3 +16,11 @@ export function recordSuccess(state:LocalState,url:string,now=Date.now()){state.
 export function pruneLocalSources(state:LocalState,catalog:Catalog){const current=new Set(catalog.channels.flatMap(c=>c.sources.map(s=>s.id)));for(const url of Object.keys(state.health))if(!current.has(url))delete state.health[url];for(const [channel,url] of Object.entries(state.lastPlayedSources))if(!current.has(url))delete state.lastPlayedSources[channel];}
 
 export function localSourceCheck(check:SourceCheck|undefined,health:Health|undefined):SourceCheck|undefined{if(check&&check.status!=="waiting")return check.status==="available"?{...check,okAt:check.okAt||health?.okAt}:check;if((health?.failedAt||0)>(health?.okAt||0))return {status:"failed"};if(health?.verifiedLive&&health.okAt)return {status:"available",okAt:health.okAt};return check;}
+
+export function normalizeLocalChannels(saved:LocalState):LocalState{
+ const lastPlayedAt:Record<string,number>={},lastPlayedSources:Record<string,string>={},owners:Record<string,string>={};
+ for(const [id,at] of Object.entries(saved.lastPlayedAt||{})){const key=channelIdentity(id);lastPlayedAt[key]=Math.max(lastPlayedAt[key]||0,at);}
+ const recentRank=(id:string)=>{const rank=saved.recent.indexOf(id);return rank<0?Infinity:rank;};
+ for(const [id,url] of Object.entries(saved.lastPlayedSources||{})){const key=channelIdentity(id),old=owners[key];if(!old||(saved.lastPlayedAt?.[id]||0)>(saved.lastPlayedAt?.[old]||0)||((saved.lastPlayedAt?.[id]||0)===(saved.lastPlayedAt?.[old]||0)&&recentRank(id)<recentRank(old))){owners[key]=id;lastPlayedSources[key]=url;}}
+ return {...saved,favorites:[...new Set(saved.favorites.map(channelIdentity))],recent:[...new Set(saved.recent.map(channelIdentity))],lastChannel:channelIdentity(saved.lastChannel),lastPlayedAt,lastPlayedSources};
+}

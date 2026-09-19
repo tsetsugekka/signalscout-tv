@@ -212,3 +212,10 @@ test('hide-failed removes restricted sources even with successful reports, but k
   const all=renderToStaticMarkup(createElement(SourceList,{...props,hideFailed:false}));assert.match(all,/线路 1</);assert.match(all,/线路 2</);
  }
 });
+
+test('line cards render catalog quality tags as compact plain labels',()=>{
+ const s={...source('https://example.com/live',1),qualities:['1080p','VGA','720p']};
+ const html=renderToStaticMarkup(createElement(SourceList,{channel:channel([s]),evaluation:context(),checks:{},hideFailed:false,onSelect:()=>{},onRecheck:()=>{}}));
+ for(const q of s.qualities)assert.ok(html.includes(`class="source-quality" title="目录标注画质">${q}</span>`));
+ assert.doesNotMatch(html,/\[1080p\]|\(720p\)/);assert.match(html,/线路 1/);
+});

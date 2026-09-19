@@ -1,4 +1,4 @@
-import {normalizeName,isBrowserSource,type Channel} from './catalog';
+import {channelIdentity,isBrowserSource,type Channel} from './catalog';
 
 // Reversible UTF-8 hex: deterministic and collision-free for distinct catalog names.
 export function channelLinkKey(name:string){return 'c'+Array.from(new TextEncoder().encode(name),byte=>byte.toString(16).padStart(2,'0')).join('');}
@@ -13,8 +13,8 @@ export function readPlaybackLink(search:string):PlaybackLink|undefined{
  const source=Number(raw);return /^[1-9]\d*$/.test(raw)&&Number.isSafeInteger(source)?{channel,source}:{channel,invalidSource:true};
 }
 export function resolvePlaybackLink(channels:Channel[],link:PlaybackLink,settled:boolean):{pending:boolean;channel?:Channel;source?:string;notice?:string}{
- const name=normalizeName(channelLinkName(link.channel));
- const channel=channels.find(c=>c.id===name);
+ const name=channelIdentity(channelLinkName(link.channel));
+ const channel=channels.find(c=>channelIdentity(c.id)===name);
  if(!channel)return settled?{pending:false,notice:'未找到链接中的频道，已使用默认频道。'}:{pending:true};
  if(link.invalidSource)return {pending:false,channel,notice:'链接中的线路编号无效，已自动选源。'};
  if(link.source){
