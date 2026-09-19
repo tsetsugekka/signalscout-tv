@@ -7,6 +7,7 @@ export function relayKey(){return key??=(async()=>{const db=catalogDb();let row=
 let catalog:{until:number;sources:Set<string>;channels:Map<string,Channel>}|undefined;
 export function invalidateCatalogSources(){catalog=undefined;}
 async function cachedCatalog(){if(!catalog||catalog.until<Date.now()){const row=await catalogDb().prepare("SELECT payload FROM catalog_cache WHERE key = ? AND synced_at > 0").bind(CATALOG_CACHE_KEY).first<{payload:string}>();if(!row)return undefined;const data=await readCachedPayload<Catalog>(row.payload);catalog={until:Date.now()+30_000,sources:new Set(data.channels.flatMap(c=>browserSources(c).map(s=>s.url))),channels:new Map(data.channels.map(c=>[c.id,c]))};}return catalog;}
+export async function catalogSourceSet(){return (await cachedCatalog())?.sources??new Set<string>();}
 export async function catalogSource(url:string){return (await cachedCatalog())?.sources.has(url)??false;}
 export async function catalogChannel(id:string){return (await cachedCatalog())?.channels.get(id);}
 const hosts=new Map<string,{until:number;addresses:string[]}>();

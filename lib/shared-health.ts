@@ -1,7 +1,6 @@
 import type {DeviceClass} from './device-class';
 import type {Source} from './catalog';
 import type {SourceCheck} from './source-checks';
-export const SHARED_HEALTH_TTL=7*24*3600_000;
 export type SharedHealthEntry={okAt:number;failedAt:number};
 export type SharedHealth=Record<string,SharedHealthEntry>;
 export type DeviceHealth=Record<string,Partial<Record<DeviceClass,SharedHealthEntry>>>;
@@ -24,7 +23,7 @@ export function mergeDeviceHealth(current:DeviceHealth,incoming:DeviceHealth,url
  return next;
 }
 export function sharedStatus(entry:SharedHealthEntry|undefined,now=Date.now()):'available'|'unstable'|'unknown'{
- if(!entry||Math.max(entry.okAt,entry.failedAt)<=now-SHARED_HEALTH_TTL)return 'unknown';
+ if(!entry||Math.max(entry.okAt,entry.failedAt)<=0)return 'unknown';
  return entry.okAt>entry.failedAt?'available':'unstable';
 }
 export function sourceRank(check:SourceCheck|undefined,entry:SharedHealthEntry|undefined,now=Date.now()){
@@ -51,3 +50,5 @@ export function deviceSourceVisible(check:SourceCheck|undefined,entry:DeviceHeal
  const unstable=(kind:DeviceClass)=>kind===device&&check?.status==='failed'?true:kind===device&&check?.status==='available'?false:sharedStatus(entry?.[kind],now)==='unstable';
  return !unstable('pc')&&(device==='pc'||!unstable('mobile'));
 }
+
+export function channelHasSharedSuccess(channel:{sources:Source[]},devices:DeviceHealth){return channel.sources.some(s=>sharedStatus(devices[s.id]?.pc)==='available'||sharedStatus(devices[s.id]?.mobile)==='available');}

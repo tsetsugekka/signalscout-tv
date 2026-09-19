@@ -103,7 +103,7 @@ export function orderedSources(channel:Channel,state:LocalState,attempted=new Se
   const unstable=(s:Source)=>sourceRank(undefined,shared[s.id],now)===2||((state.health[s.id]?.failedAt||0)>(state.health[s.id]?.okAt||0)&&(state.health[s.id]?.until||0)>now);
   const failureOrder=Number(unstable(a))-Number(unstable(b));if(failureOrder)return failureOrder;
   if(a.id===preferred)return -1;if(b.id===preferred)return 1;
-  const score=(s:Source)=>{const t=state.health[s.id]?.verifiedLive?state.health[s.id].okAt||0:0;return now-t<24*3600_000?t:0;};return score(b)-score(a)||sourceRank(undefined,shared[a.id],now)-sourceRank(undefined,shared[b.id],now);
+  const score=(s:Source)=>{const t=state.health[s.id]?.verifiedLive?state.health[s.id].okAt||0:0;return t>(state.health[s.id]?.failedAt||0)?t:0;};return score(b)-score(a)||sourceRank(undefined,shared[a.id],now)-sourceRank(undefined,shared[b.id],now);
  });
 }
 export class PlayerEngine{

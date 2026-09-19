@@ -87,3 +87,18 @@ test('source numbers survive sorting, reordered imports, removals and hole reuse
  assert.deepEqual(numberSources([make(['a','e','c','f'])],gap)[0].sources.map(s=>s.number),[1,2,3,4]);
  assert.deepEqual(numberSources(next)[0].sources,next[0].sources);
 });
+
+test('removed catalog URLs lose local success and playback preference',async()=>{
+ const {defaults,recordSuccess,recordFailure,pruneLocalSources}=await import('../lib/local-state');
+ const s=defaults();recordSuccess(s,'gone',1);recordSuccess(s,'kept',1);s.lastPlayedSources.c='gone';recordFailure(s,'kept',2);
+ assert.ok(s.health.kept.failedAt!>s.health.kept.okAt!);
+ pruneLocalSources(s,{version:'x',syncedAt:1,channels:[{id:'c',name:'c',title:'c',group:'其他',sources:[{id:'kept',url:'kept'}]}]});
+ assert.equal(s.health.gone,undefined);assert.equal(s.lastPlayedSources.c,undefined);assert.equal(s.health.kept.okAt,1);
+});
+
+test('one local failure cancels local availability even after cooldown; success restores it',async()=>{
+ const {defaults,recordSuccess,recordFailure,localSourceCheck}=await import('../lib/local-state');const s=defaults();
+ recordSuccess(s,'u',1);assert.equal(localSourceCheck({status:'waiting'},s.health.u)?.status,'available');
+ recordFailure(s,'u',2);s.health.u.until=0;assert.equal(localSourceCheck({status:'waiting'},s.health.u)?.status,'failed');
+ recordSuccess(s,'u',3);assert.equal(localSourceCheck(undefined,s.health.u)?.status,'available');
+});

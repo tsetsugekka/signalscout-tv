@@ -42,3 +42,5 @@
 - Improve native HLS relay compatibility: complete playlist responses, media types, inconclusive live checks and playback diagnostics.
 
 - Apply device-specific instability filtering consistently to channels and source cards.
+
+- Add protected shared success with distinct-browser failure quorum, persistent local verification until local failure, and a shared-playable channel view.
