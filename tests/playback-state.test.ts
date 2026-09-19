@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
-import {buildHostHealth,evaluateSource,evaluateChannel,evidenceLabel,rankSourceStates,sourceStateVisible,RECENT_SUCCESS,sourceHost,type EvaluationContext} from '../lib/playback-state';
-import {defaults,recordSuccess,recordFailure,localSourceCheck,pruneLocalSources} from '../lib/local-state';
+import {buildHostHealth,evaluateSource,evaluateChannel,evidenceLabel,rankSourceStates,sourceStateVisible,channelInPlaybackView,channelPlaybackPriority,RECENT_SUCCESS,sourceHost,type EvaluationContext} from '../lib/playback-state';
+import {defaults,readSourceFilter,recordSuccess,recordFailure,localSourceCheck,pruneLocalSources} from '../lib/local-state';
 import {orderedSources} from '../lib/player';
 import {channelHasSharedSuccess,deviceSourceVisible} from '../lib/shared-health';
 import {ChannelSignal} from '../components/channel-signal';
@@ -29,12 +29,19 @@ test('the 24-hour boundary downgrades labels and priority without expiring local
  assert.equal(localSourceCheck({status:'waiting'},ctx.local[old.id])?.okAt,now-RECENT_SUCCESS);
 });
 
-test('host inference ignores ports and schemes, supports IP literals, and never groups different hostnames',()=>{
+test('host inference groups subdomains by registrable domain, while retaining public suffix and IP boundaries',()=>{
  assert.equal(sourceHost('http://TV.Example:80/a'),'tv.example');
  assert.equal(sourceHost('https://tv.example:9000/b'),'tv.example');
  assert.equal(sourceHost('http://42.94.210.135:7788/a'),sourceHost('https://42.94.210.135:9999/b'));
  assert.equal(sourceHost('http://[2001:db8::1]:80/a'),sourceHost('https://[2001:db8::1]:9000/b'));
  assert.notEqual(sourceHost('https://a.example/x'),sourceHost('https://b.example/x'));
+ assert.equal(sourceHost('https://23.xxx.com/a'),'xxx.com');
+ assert.equal(sourceHost('https://TV.xxx.com.:9000/b'),'xxx.com');
+ assert.equal(sourceHost('http://a.tv.example.co.jp/live'),'example.co.jp');
+ assert.notEqual(sourceHost('https://a.example.com.cn/a'),sourceHost('https://a.other.com.cn/b'));
+ assert.notEqual(sourceHost('https://one.github.io/a'),sourceHost('https://two.github.io/b'));
+ assert.equal(sourceHost('https://a.one.github.io/a'),'one.github.io');
+ assert.notEqual(sourceHost('https://[2001:db8::1]/a'),sourceHost('https://[2001:db8::2]/b'));
  const good=source('http://42.94.210.135:7788/live'),hint=source('https://42.94.210.135:8888/other'),unknown=source('https://42.94.210.136/other');
  const ctx=withHosts([good,hint,unknown],context({local:{[good.id]:success()}}));
  assert.equal(evaluateSource(hint,ctx).current.status,'possible');
@@ -43,14 +50,37 @@ test('host inference ignores ports and schemes, supports IP literals, and never 
  assert.equal(localSourceCheck(undefined,ctx.local[hint.id]),undefined);
 });
 
+test('subdomain hints enter both playable views without crossing domains or fabricating success',()=>{
+ const good=source('https://23.example.com/a'),hint=source('http://tv.example.com:8000/b'),other=source('https://tv.other.com/a');
+ const ctx=withHosts([good,hint,other],context({local:{[good.id]:success()}}));
+ assert.equal(evaluateSource(hint,ctx).current.status,'possible');assert.equal(evaluateSource(other,ctx).current.status,'unknown');
+ for(const view of ['local','shared'] as const)assert.equal(channelInPlaybackView(channel([hint]),ctx,view),true);
+ assert.equal(ctx.local[hint.id],undefined);assert.equal(ctx.devices[hint.id],undefined);
+});
+
+test('three display modes preserve legacy hiding and promote applicable success tiers ahead of existing order',()=>{
+ assert.equal(defaults().sourceFilter,'all');assert.equal(readSourceFilter({hideFailed:true}),'hide-failed');assert.equal(readSourceFilter({hideFailed:false}),'all');assert.equal(readSourceFilter({sourceFilter:'priority',hideFailed:true}),'priority');
+ const names=['unknown','possible','older','reference','recent','failed'];
+ const sources=names.map(name=>source(`https://${name}.example/live`));
+ const [unknown,hint,old,reference,fresh,bad]=sources;
+ const ctx=context({local:{[fresh.id]:success(),[old.id]:success(now-RECENT_SUCCESS),[bad.id]:{...success(),failedAt:now}},devices:{[reference.id]:{mobile:{okAt:now,failedAt:0}}},hosts:new Map([[sourceHost(hint.url)!,{pc:now}]])});
+ const channels=sources.map((s,i)=>({...channel([s]),id:names[i]}));
+ const ranked=[...channels].sort((a,b)=>channelPlaybackPriority(a,ctx)-channelPlaybackPriority(b,ctx));
+ assert.deepEqual(ranked.map(c=>c.id),['reference','recent','older','possible','unknown','failed']);
+ assert.deepEqual(channels.map(c=>c.id),names);
+ assert.equal(sourceStateVisible(evaluateSource(unknown,ctx),'pc',true),true);assert.equal(sourceStateVisible(evaluateSource(bad,ctx),'pc',true),false);
+ assert.equal(sourceStateVisible(evaluateSource(bad,ctx),'pc',false),true);
+});
+
 test('host hints never overwrite actual failure, unsupported formats, or another-device proof',()=>{
  const good=source('https://example.com/good'),bad=source('https://example.com/bad'),unsupported=source('https://example.com/vod.mp4'),pcOnly=source('https://example.com/pc');
  const ctx=withHosts([good,bad,unsupported,pcOnly],context({device:'mobile',local:{[good.id]:success(),[bad.id]:{...success(),failedAt:now}},devices:{[pcOnly.id]:{pc:{okAt:now,failedAt:0}}}}));
  assert.equal(evaluateSource(bad,ctx).current.status,'unstable');
  assert.equal(evaluateSource(unsupported,ctx).display.status,'unsupported');
- assert.equal(evaluateSource(pcOnly,ctx).current.status,'unknown');
+ assert.equal(evaluateSource(pcOnly,ctx).current.status,'recent');
+ assert.equal(evaluateSource(pcOnly,ctx).devices.mobile.status,'unknown');
  assert.equal(evaluateSource(pcOnly,ctx).reference,'pc');
- assert.deepEqual(evaluateChannel(channel([pcOnly]),ctx),{signal:'pending',label:'PC近期可播 · 手机待验证'});
+ assert.deepEqual(evaluateChannel(channel([pcOnly]),ctx),{signal:'recent',label:'PC近期可播 · 手机待验证'});
 });
 
 test('host hints disappear when their last real evidence fails or is removed from the catalog',()=>{
@@ -60,6 +90,14 @@ test('host hints disappear when their last real evidence fails or is removed fro
  recordSuccess(state,good.id,now+2);pruneLocalSources(state,{channels:[channel([hint])],syncedAt:now,version:'v'});
  ctx=withHosts([hint],context({local:state.health,devices:{[good.id]:{pc:{okAt:now,failedAt:0}}}}));
  assert.equal(ctx.hosts.size,0);assert.equal(evaluateSource(hint,ctx).current.status,'unknown');
+});
+
+test('both playable views include possible channels without recording inferred verification',()=>{
+ const good=source('https://example.com/a'),hint=source('http://example.com:8000/b'),unknown=source('https://unknown.example/a');
+ const ctx=withHosts([good,hint,unknown],context({devices:{[good.id]:{pc:{okAt:now,failedAt:0}}}}));
+ for(const view of ['local','shared'] as const){assert.equal(channelInPlaybackView(channel([hint]),ctx,view),true);assert.equal(channelInPlaybackView(channel([unknown]),ctx,view),false);}
+ assert.equal(evaluateChannel(channel([hint]),ctx).signal,'possible');assert.deepEqual(ctx.local,{});assert.equal(ctx.devices[hint.id],undefined);
+ ctx.local[hint.id]={...success(),failedAt:now};for(const view of ['local','shared'] as const)assert.equal(channelInPlaybackView(channel([hint]),ctx,view),false);
 });
 
 test('local failure wins over same-device shared success, while opposite-device success still promotes display',()=>{
@@ -121,7 +159,16 @@ test('automatic selection keeps a good last-watched preference, defers persisten
 
 test('rendered cards retain device conflicts, original numbers and host hint labels; signal markup exposes accessible state',()=>{
  const good=source('https://example.com/live',15),hint=source('https://example.com:9000/other',28);const ctx=withHosts([good,hint],context({device:'mobile',local:{[good.id]:{...success(),failedAt:now}},devices:{[good.id]:{pc:{okAt:now,failedAt:0},mobile:{okAt:now,failedAt:0}}}}));
- const html=renderToStaticMarkup(createElement(SourceList,{channel:channel([good,hint]),evaluation:ctx,checks:{[good.id]:{status:'failed'}},hideFailed:false,onSelect:()=>{},onRecheck:()=>{}}));
- assert.match(html,/线路 15/);assert.match(html,/线路 28/);assert.match(html,/PC：他人近期可播/);assert.match(html,/手机：本机不稳定/);assert.match(html,/device-recent[^>]*> · 他人近期可播/);assert.match(html,/可能可播/);
+ const html=renderToStaticMarkup(createElement(SourceList,{channel:channel([good,hint]),evaluation:ctx,checks:{[good.id]:{status:'failed',connectMs:123}},hideFailed:false,onSelect:()=>{},onRecheck:()=>{}}));
+ assert.match(html,/线路 15/);assert.match(html,/线路 28/);assert.match(html,/PC：他人近期可播/);assert.match(html,/手机：本机不稳定/);assert.match(html,/device-recent[^>]*> · 他人近期可播/);assert.match(html,/可能可播/);assert.match(html,/aria-label="连接耗时 123 毫秒"/);assert.match(html,/123 ms/);assert.doesNotMatch(html,/复制地址|打开原始地址|<code|href=/);
  for(const signal of ['recent','available','possible','pending','checking','unavailable','restricted','offline'] as const){const icon=renderToStaticMarkup(createElement(ChannelSignal,{state:{signal,label:'测试'}}));assert.match(icon,new RegExp('signal-'+signal));assert.match(icon,/aria-label="测试"/);if(signal==='pending')assert.match(icon,/<circle/);if(['unavailable','restricted','offline'].includes(signal))assert.match(icon,/M3 3l18 18/);}
+});
+
+test('an unknown device borrows the other device success tier for signals and ranking without overwriting facts',()=>{
+ const s=source('https://example.com/live');
+ for(const device of ['pc','mobile'] as const){const other=device==='pc'?'mobile':'pc';for(const age of [1,RECENT_SUCCESS]){
+  const ctx=context({device,devices:{[s.id]:{[other]:{okAt:now-age,failedAt:0}}}});const expected=age===1?'recent':'available';
+  const result=evaluateSource(s,ctx);assert.equal(result.current.status,expected);assert.equal(result.display.status,expected);assert.equal(result.devices[device].status,'unknown');assert.equal(result.reference,other);assert.equal(evaluateChannel(channel([s]),ctx).signal,expected);
+  ctx.devices[s.id][device]={okAt:0,failedAt:now};assert.equal(evaluateSource(s,ctx).current.status,'unstable');assert.equal(evaluateChannel(channel([s]),ctx).signal,'unavailable');
+ }}
 });

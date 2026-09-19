@@ -1,7 +1,16 @@
-export const CATEGORIES=["央视","卫视","地方","港澳台","海外","其他","全部"] as const;
-export function isJapaneseChannel(name:string){const n=name.replace(/[\s·_-]/g,"");return /日本|日语|日テレ|NHK|^[「【\[]JP[」】\]]|[\u3040-\u30ff]|^(?:TOKYOMX|TVTOKYO|WOWOW|BSTBS|BS11|BS12)(?:$|\d)|^TBS(?:$|\d|NEWS(?:DIG)?$|ニュース)/i.test(n);}
+export const CATEGORIES=["央视","卫视","地方","港台","日本","海外","其他","全部"] as const;
+const compactName=(name:string)=>name.replace(/[\s·_-]/g,"");
+const classificationName=(name:string)=>compactName(name).replace(/^(?:[\[【（(](?:HD|FHD|UHD|SD|4K|8K|720P|1080[PI]|2160P|高清|超清|标清|蓝光)[\]】）)])+/i,"");
+export function isJapaneseChannel(name:string){const n=classificationName(name);return /日本|日语|日テレ|NHK|^[「【\[]JP[」】\]]|[\u3040-\u30ff]|^(?:TOKYOMX|TVTOKYO|WOWOW|BSTBS|BS11|BS12)(?:$|\d)|^TBS(?:$|\d|NEWS(?:DIG)?$|ニュース)/i.test(n);}
+export function channelInCategory(channel:{name:string;group:string},category:string){
+ if(category==="全部")return true;
+ if(category==="日本")return channel.group==="海外"&&isJapaneseChannel(channel.name);
+ return channel.group===(category==="港台"?"港澳台":category);
+}
 export function classifyChannel(name:string,originalGroup=""):string{
- const n=name.replace(/[\s·_-]/g,"");const g=originalGroup;
+ const n=classificationName(name);const g=originalGroup;
+ // Quality markers are metadata, not part of station identity. Prefer a recognized name over a stale feed group.
+ if(n!==compactName(name)){const recognized=classifyChannel(n);if(recognized!=="其他")return recognized;}
  if(/^凤凰传奇/.test(n))return "其他";
  const bd=n.match(/^\[BD\](.+)$/i)?.[1];
  if(bd){const domestic=classifyChannel(bd);if(["央视","卫视","地方","港澳台"].includes(domestic))return domestic;if(/^经济科教/.test(bd))return "地方";}
@@ -29,14 +38,14 @@ export function compareChannelNames(a:string,b:string){
 }
 
 export function categoryPriority(name:string,category:string){
- const n=name.replace(/[\s·_-]/g,"");
- if(category==="港澳台")return n.includes("凤凰")?0:1;
+ const n=classificationName(name);
+ if(category==="港台"||category==="港澳台")return n.includes("凤凰")?0:1;
  if(category==="卫视"){
   const rank=[/北京/,/上海|东方/,/湖南/,/浙江/].findIndex(pattern=>pattern.test(n));return rank<0?4:rank;
  }
  if(category==="地方")return n.includes("北京")?0:1;
  if(category==="海外"){
-  const rank=[/BLOOMBERG|彭博/i,/CNBC/i,/CNN/i,/BBC/i].findIndex(pattern=>pattern.test(n));return rank>=0?rank:isJapaneseChannel(n)?4:5;
+  const rank=[/BLOOMBERG|彭博/i,/CNBC/i,/CNN/i,/BBC/i].findIndex(pattern=>pattern.test(n));return rank>=0?rank:4;
  }
  return 0;
 }

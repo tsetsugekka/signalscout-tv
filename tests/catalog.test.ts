@@ -24,7 +24,7 @@ test('large directory cache splits below D1 row limit and reconstructs the exact
 
 test('Phoenix Legend is not a Phoenix TV regional channel, including old cached groups',async()=>{const {classifyChannel}=await import('../lib/channel-category');assert.equal(classifyChannel('凤凰传奇'),'其他');assert.equal(classifyChannel('凤凰传奇','港澳台'),'其他');for(const name of ['凤凰中文','凤凰资讯台','凤凰香港'])assert.equal(classifyChannel(name),'港澳台');const {mergeChannels}=await import('../lib/catalog');assert.equal(mergeChannels([[{id:'凤凰传奇',name:'凤凰传奇',title:'',group:'港澳台',sources:[{id:'http://example.com/live',url:'http://example.com/live'}]}]])[0].group,'其他');});
 
-test('category pinning uses requested order without moving Phoenix Legend out of other',async()=>{const {compareCategoryNames}=await import('../lib/channel-category');const sorted=(names:string[],category:string)=>names.sort((a,b)=>compareCategoryNames(a,b,category));assert.deepEqual(sorted(['安徽卫视','浙江卫视','湖南卫视','东方卫视','北京卫视'],'卫视'),['北京卫视','东方卫视','湖南卫视','浙江卫视','安徽卫视']);assert.equal(sorted(['翡翠台','凤凰中文'],'港澳台')[0],'凤凰中文');assert.equal(sorted(['上海新闻','北京文艺'],'地方')[0],'北京文艺');assert.deepEqual(sorted(['FOX NEWS','BBC World','CNN','CNBC','Bloomberg','NHK World'],'海外'),['Bloomberg','CNBC','CNN','BBC World','NHK World','FOX NEWS']);assert.equal(sorted(['【US】News','【JP】News'],'海外')[0],'【JP】News');assert.deepEqual(sorted(['其他频道','日语新闻','BBC日本'],'海外'),['BBC日本','日语新闻','其他频道']);assert.deepEqual(sorted(['CCTV6','CCTV5+','CCTV5'],'央视'),['CCTV5','CCTV5+','CCTV6']);});
+test('category pinning uses requested order without moving Phoenix Legend out of other',async()=>{const {compareCategoryNames}=await import('../lib/channel-category');const sorted=(names:string[],category:string)=>names.sort((a,b)=>compareCategoryNames(a,b,category));assert.deepEqual(sorted(['安徽卫视','浙江卫视','湖南卫视','东方卫视','北京卫视'],'卫视'),['北京卫视','东方卫视','湖南卫视','浙江卫视','安徽卫视']);assert.equal(sorted(['翡翠台','凤凰中文'],'港澳台')[0],'凤凰中文');assert.equal(sorted(['上海新闻','北京文艺'],'地方')[0],'北京文艺');assert.deepEqual(sorted(['FOX NEWS','BBC World','CNN','CNBC','Bloomberg','NHK World'],'海外'),['Bloomberg','CNBC','CNN','BBC World','FOX NEWS','NHK World']);assert.equal(sorted(['【US】News','【JP】News'],'海外')[0],'【JP】News');assert.deepEqual(sorted(['其他频道','日语新闻','BBC日本'],'海外'),['BBC日本','其他频道','日语新闻']);assert.deepEqual(sorted(['CCTV6','CCTV5+','CCTV5'],'央视'),['CCTV5','CCTV5+','CCTV6']);});
 
 
 test('default channel list requires three sources except Phoenix and prioritized overseas news',async()=>{
@@ -116,3 +116,58 @@ test('Japanese station classification matches its pinning while avoiding TBS Seo
 });
 
 test('Japanese channels are exempt from the three-source threshold',async()=>{const {isPrimaryChannel}=await import('../lib/channel-list');for(const name of ['NHK','BS-TBS','WOWOWシネマ'])assert.equal(isPrimaryChannel({id:name,name,title:'',group:'海外',sources:[{id:'u',url:'https://example.com/u'}]}),true);});
+
+test('quality prefixes do not hide domestic station names, including stale imported groups',async()=>{
+ const {classifyChannel}=await import('../lib/channel-category');
+ const names=['东莞新闻综合','广东民生','广东少儿','广东新闻','广东移动','广东珠江','广州新闻','广州综合','湖南娱乐','江西少儿家庭'];
+ for(const name of names)for(const group of ['其他','海外'])assert.equal(classifyChannel(`[HD]${name}`,group),'地方',name);
+ for(const prefix of ['[SD]','[FHD]','【UHD】','（高清）','(1080p)','[4K][HD]'])assert.equal(classifyChannel(prefix+'广东新闻'),'地方',prefix);
+});
+
+test('quality metadata preserves satellite, national and foreign identities without erasing country tags',async()=>{
+ const {classifyChannel,categoryPriority}=await import('../lib/channel-category');
+ for(const [name,group] of [['[HD]湖南卫视','卫视'],['[HD]CCTV5+','央视'],['[HD]凤凰中文','港澳台'],['[HD][US]ABC News','海外'],['[HD]BS-TBS','海外'],['[HD]未知频道','其他'],['[HD]凤凰传奇','其他'],['[BD]Bangla TV','海外']])assert.equal(classifyChannel(name),group,name);
+ assert.equal(categoryPriority('[HD]BS-TBS','海外'),4);
+});
+
+test('cached quality-tagged channels are reclassified without changing IDs, source numbers or URLs',async()=>{
+ const {mergeChannels}=await import('../lib/catalog');const source={id:'http://example.com/live',url:'http://example.com/live',number:15};
+ const c=mergeChannels([[{id:'[HD]东莞新闻综合',name:'[HD]东莞新闻综合',title:'',group:'其他',sources:[source]}]])[0];
+ assert.equal(c.group,'地方');assert.equal(c.id,'[HD]东莞新闻综合');assert.equal(c.name,'[HD]东莞新闻综合');assert.deepEqual(c.sources,[source]);
+});
+
+test('Japan has its own filter while remaining overseas without a Japan-only pin; Taiwan label includes Macau',async()=>{
+ const {CATEGORIES,classifyChannel,channelInCategory,categoryPriority}=await import('../lib/channel-category');
+ assert.deepEqual(CATEGORIES,['央视','卫视','地方','港台','日本','海外','其他','全部']);
+ for(const name of ['NHK','BS-TBS','[JP]News','[HD]WOWOWシネマ']){const c={name,group:classifyChannel(name)};assert.equal(channelInCategory(c,'日本'),true);assert.equal(channelInCategory(c,'海外'),true);assert.equal(categoryPriority(name,'海外'),categoryPriority('FOX NEWS','海外'));}
+ assert.equal(channelInCategory({name:'CNN',group:'海外'},'日本'),false);
+ const macau={name:'澳门莲花',group:classifyChannel('澳门莲花')};assert.equal(channelInCategory(macau,'港台'),true);
+ assert.equal(categoryPriority('凤凰中文','港台'),0);
+ const {isPrimaryChannel}=await import('../lib/channel-list');const single=(name:string)=>({id:name,name,title:'',group:'海外',sources:[{id:'u',url:'http://example.com/u'}]});
+ assert.equal(isPrimaryChannel(single('NHK')),true);assert.equal(isPrimaryChannel(single('FOX NEWS')),false);
+});
+
+
+test('channel deep links encode reserved, Unicode and HTML-like names as inert values',async()=>{
+ const {readPlaybackLink,resolvePlaybackLink,playbackLinkSearch,channelLinkKey}=await import('../lib/channel-links');
+ assert.notEqual(channelLinkKey('CCTV5'),channelLinkKey('CCTV5+'));assert.equal(channelLinkKey('CCTV5+'),'c43435456352b');
+ const names=['CCTV5+','BBC','bbc','NHK 日本語 #1 & BS=2?','频道 / \"引用\" <img src=x onerror=alert(1)>','100% Channel'];
+ for(const name of names){const c={id:name,name,title:name,group:'其他',sources:[{id:'https://example.com/live',url:'https://example.com/live',number:17}]};
+  const query=playbackLinkSearch(c,c.sources[0].id);const url=new URL('https://example.com/?'+query);assert.equal(url.hash,'');assert.equal(url.searchParams.size,2);assert.equal(url.searchParams.get('channel'),channelLinkKey(name));assert.match(url.searchParams.get('channel')!,/^[a-z0-9]+$/);assert.equal(channelLinkKey(name),channelLinkKey(name));
+  const link=readPlaybackLink(url.search)!;const resolved=resolvePlaybackLink([c],link,true);assert.equal(resolved.channel?.id,name);assert.equal(resolved.source,c.sources[0].id);
+ }
+});
+
+test('deep links use stable source numbers and wait for expanded catalogs before falling back',async()=>{
+ const {readPlaybackLink,resolvePlaybackLink}=await import('../lib/channel-links');
+ const five=parsePlaylist(m3u([['CCTV5','https://example.com/five']]))[0];
+ const plus={...parsePlaylist(m3u([['CCTV5+','https://example.com/plus'],['CCTV5+','https://example.com/other']]))[0],sources:[{id:'https://example.com/other',url:'https://example.com/other',number:17},{id:'https://example.com/plus',url:'https://example.com/plus',number:15}]};
+ const link=readPlaybackLink('?channel=CCTV5%2B&source=15')!;assert.deepEqual(resolvePlaybackLink([five],link,false),{pending:true});
+ assert.deepEqual(resolvePlaybackLink([plus],link,true),{pending:false,channel:plus,source:'https://example.com/plus'});
+ assert.equal(resolvePlaybackLink([five],link,true).notice?.includes('未找到'),true);
+ assert.equal(resolvePlaybackLink([plus],{channel:'CCTV5+',source:99},false).pending,true);
+ assert.equal(resolvePlaybackLink([plus],{channel:'CCTV5+',source:99},true).source,undefined);
+ assert.equal(resolvePlaybackLink([plus],readPlaybackLink('?channel=CCTV5%2B')!,false).channel,plus);
+ for(const source of ['0','-1','1.5','1e3','NaN','99999999999999999','https://evil.example'])assert.equal(readPlaybackLink('?channel=CCTV5&source='+encodeURIComponent(source))?.invalidSource,true);
+ assert.equal(readPlaybackLink('?source=15'),undefined);
+});

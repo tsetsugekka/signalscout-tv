@@ -53,3 +53,12 @@
 - 分别判断线路排序、当前设备选源与频道信号，保留本机／他人及PC／手机的差异。
 - 同域名或IP的成功提供“可能可播”提示，忽略端口，不覆盖失败或当成真实成功。
 - 增加状态融合与信号图标说明图。
+
+## Availability browsing and channel links
+
+- Correct quality-prefixed domestic classifications; add the Japan shortcut and compact, naturally wrapping category buttons.
+- Include possible-playback hints in both playable views; borrow the other device’s recent/older success tier only when this device is unknown.
+- Group weak hints by registrable domain across subdomains/ports or full IP, preserving suffix and hosted-tenant boundaries.
+- Add three display modes; hide raw address actions and compact source cards without changing source numbers.
+- Add deterministic reversible channel keys and optional stable source-number links, with progressive catalog resolution.
+- Refresh the original five-panel state diagram wording to match the implemented behavior.
