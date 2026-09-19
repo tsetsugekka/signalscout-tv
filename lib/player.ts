@@ -1,6 +1,7 @@
 import {deviceClass} from "./device-class";
 import Hls from "hls.js";
-import {sourceRank,type SharedHealth} from "./shared-health";
+import {type SharedHealth} from "./shared-health";
+import {attemptEvidence,compareEvidence,type HostHealth} from "./playback-state";
 import type {SourceCheck} from "./source-checks";
 import type { Channel, Source } from "./catalog";
 import { browserSources,playbackUrl } from "./catalog";
@@ -98,17 +99,16 @@ export function connectMedia(video:HTMLVideoElement,url:string,callbacks:Callbac
  return {resume:attemptPlay,stop:()=>{if(disposed)return;disposed=true;inspection.abort();clearTimeout(inspectionTimeout);clearInterval(timer);if(frameId!==undefined)video.cancelVideoFrameCallback(frameId);video.removeEventListener("timeupdate",sample);video.removeEventListener("pause",onPause);video.removeEventListener("playing",onPlaying);video.removeEventListener("error",onError);video.removeEventListener("ended",onError);hls?.destroy();video.pause();video.removeAttribute("src");video.load();}};
 }
 export function fingerprint(channel:Channel){return channel.sources.map(s=>s.id).sort().join("\n");}
-export function orderedSources(channel:Channel,state:LocalState,attempted=new Set<string>(),shared:SharedHealth={}){
- const now=Date.now(),preferred=state.lastPlayedSources[channel.id];return browserSources(channel).filter(s=>!attempted.has(s.id)&&(s.id===preferred||!(state.health[s.id]?.until>now))).sort((a,b)=>{
-  const unstable=(s:Source)=>sourceRank(undefined,shared[s.id],now)===2||((state.health[s.id]?.failedAt||0)>(state.health[s.id]?.okAt||0)&&(state.health[s.id]?.until||0)>now);
-  const failureOrder=Number(unstable(a))-Number(unstable(b));if(failureOrder)return failureOrder;
+export function orderedSources(channel:Channel,state:LocalState,attempted=new Set<string>(),shared:SharedHealth={},hosts:HostHealth=new Map(),device=deviceClass()){
+ const now=Date.now(),preferred=state.lastPlayedSources[channel.id];const evidence=(s:Source)=>attemptEvidence(s,state.health[s.id],shared[s.id],hosts,device,now);return browserSources(channel).filter(s=>!attempted.has(s.id)&&(s.id===preferred||!(state.health[s.id]?.until>now))).sort((a,b)=>{
+  const failureOrder=Number(evidence(a).status==='unstable')-Number(evidence(b).status==='unstable');if(failureOrder)return failureOrder;
   if(a.id===preferred)return -1;if(b.id===preferred)return 1;
-  const score=(s:Source)=>{const t=state.health[s.id]?.verifiedLive?state.health[s.id].okAt||0:0;return t>(state.health[s.id]?.failedAt||0)?t:0;};return score(b)-score(a)||sourceRank(undefined,shared[a.id],now)-sourceRank(undefined,shared[b.id],now);
+  return compareEvidence(evidence(a),evidence(b));
  });
 }
 export class PlayerEngine{
  private nextTimer:ReturnType<typeof setTimeout>|undefined;private mobile=deviceClass()==="mobile";
- sharedHealth:SharedHealth={};loadShared?:(channel:Channel)=>Promise<SharedHealth>;
+ sharedHealth:SharedHealth={};hostHealth:HostHealth=new Map();loadShared?:(channel:Channel)=>Promise<SharedHealth>;
  preferredSourceId?:string;connection?:Connection;channel?:Channel;source?:Source;attempted=new Set<string>();generation=0;auto=true;disposed=false;current:PlayerState={status:"idle"};
  constructor(public video:HTMLVideoElement,public local:LocalState,public update:(state:PlayerState)=>void,public persist:()=>void,public suspendProbe:()=>void,public sourceCheck:(id:string,result:SourceCheck)=>void=()=>{}){}
  emit(next:PlayerState){this.current=next;this.update(next);}
@@ -118,7 +118,7 @@ export class PlayerEngine{
   const channel=this.channel;if(!channel||this.disposed)return;
   if(!navigator.onLine){this.emit({status:"offline"});return;}
   if(this.mobile&&document.visibilityState!=="visible"){this.nextTimer=setTimeout(()=>this.next(recovering),1500);return;}
-  const candidates=orderedSources(channel,this.local,this.attempted,this.sharedHealth);const source=browserSources(channel).find(s=>s.id===this.preferredSourceId&&!this.attempted.has(s.id))||candidates[0];
+  const candidates=orderedSources(channel,this.local,this.attempted,this.sharedHealth,this.hostHealth,this.mobile?'mobile':'pc');const source=browserSources(channel).find(s=>s.id===this.preferredSourceId&&!this.attempted.has(s.id))||candidates[0];
   if(!source){const compatible=browserSources(channel);const until=compatible.length?Math.min(...compatible.map(s=>this.local.health[s.id]?.until||Date.now()+10*60_000)):Date.now()+6*3600_000;
    this.local.unavailable[channel.id]={fingerprint:fingerprint(channel),until};this.persist();
    this.emit({status:"unavailable",reason:compatible.length?"当前网络暂无可播放线路，稍后会自动复查。":"这些线路不是受支持的直播格式，可在下方查看源地址。"});return;

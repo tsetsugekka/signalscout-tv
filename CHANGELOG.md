@@ -46,3 +46,10 @@
 - Add protected shared success with distinct-browser failure quorum, persistent local verification until local failure, and a shared-playable channel view.
 
 - Correct ambiguous BD-prefixed domestic categories and Japanese station recognition; exempt Japanese channels from the source-count threshold.
+
+## 播放状态与信号
+
+- 成功记录区分24小时内“近期可播”和更早的“可播”，不因时间自动失效。
+- 分别判断线路排序、当前设备选源与频道信号，保留本机／他人及PC／手机的差异。
+- 同域名或IP的成功提供“可能可播”提示，忽略端口，不覆盖失败或当成真实成功。
+- 增加状态融合与信号图标说明图。

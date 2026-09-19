@@ -13,4 +13,4 @@ export function recordSuccess(state:LocalState,url:string,now=Date.now()){state.
 
 export function pruneLocalSources(state:LocalState,catalog:Catalog){const current=new Set(catalog.channels.flatMap(c=>c.sources.map(s=>s.id)));for(const url of Object.keys(state.health))if(!current.has(url))delete state.health[url];for(const [channel,url] of Object.entries(state.lastPlayedSources))if(!current.has(url))delete state.lastPlayedSources[channel];}
 
-export function localSourceCheck(check:SourceCheck|undefined,health:Health|undefined):SourceCheck|undefined{if(check&&check.status!=="waiting")return check;if((health?.failedAt||0)>(health?.okAt||0))return {status:"failed"};if(health?.verifiedLive&&health.okAt)return {status:"available"};return check;}
+export function localSourceCheck(check:SourceCheck|undefined,health:Health|undefined):SourceCheck|undefined{if(check&&check.status!=="waiting")return check.status==="available"?{...check,okAt:check.okAt||health?.okAt}:check;if((health?.failedAt||0)>(health?.okAt||0))return {status:"failed"};if(health?.verifiedLive&&health.okAt)return {status:"available",okAt:health.okAt};return check;}

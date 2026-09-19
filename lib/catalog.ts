@@ -69,6 +69,7 @@ export async function catalogFromChannels(channels:Channel[],now=Date.now(),inpu
  const hash=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(canonical));
  return {channels,syncedAt:now,inputs,version:[...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,"0")).join("")};
 }
-export function browserSources(c:Channel){return c.sources.filter(s=>/^https?:/.test(s.url)&&!/\.(swf|mp4|m4v|mov|webm|mp3|m4a|aac)(?:[?#]|$)/i.test(s.url));}
+export function isBrowserSource(s:Source){return /^https?:/.test(s.url)&&!/\.(swf|mp4|m4v|mov|webm|mp3|m4a|aac)(?:[?#]|$)/i.test(s.url);}
+export function browserSources(c:Channel){return c.sources.filter(isBrowserSource);}
 
 export function playbackUrl(url:string){return url.startsWith("http:")?`/api/stream?source=${encodeURIComponent(url)}`:url;}

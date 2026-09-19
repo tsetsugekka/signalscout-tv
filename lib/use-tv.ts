@@ -1,20 +1,25 @@
 "use client";
 import {deviceClass,supportsBackgroundProbe,type DeviceClass} from "./device-class";
 import {numberSources} from "./source-numbers";
-import { useEffect,useRef,useState } from "react";
+import { useEffect,useMemo,useRef,useState } from "react";
 import { browserSources,normalizeName,mergeChannels,type Catalog,type Channel } from "./catalog";
 import { localSourceCheck,pruneLocalSources,defaults,readLocal,writeLocal,recordSuccess,recordFailure,type LocalState } from "./local-state";
 import { PlayerEngine,connectMedia,fingerprint,type PlayerState } from "./player";
-import {channelHasSharedSuccess,deviceSourceVisible,rankedSources,healthForDevice,mergeDeviceHealth,type DeviceHealth,type SharedHealth} from "./shared-health";
+import {channelHasSharedSuccess,healthForDevice,mergeDeviceHealth,type DeviceHealth,type SharedHealth} from "./shared-health";
+import {attemptEvidence,compareEvidence,buildHostHealth,evaluateSource,sourceStateVisible,type EvaluationContext} from "./playback-state";
 import {initialSourceChecks,nextSourceToCheck,type SourceCheck} from "./source-checks";
 export function useTV(){
  const [device,setDevice]=useState<DeviceClass>("pc");const [deviceHealth,setDeviceHealth]=useState<DeviceHealth>({});const deviceHealthRef=useRef<DeviceHealth>({});
  const [sharedHealth,setSharedHealth]=useState<SharedHealth>({});const sharedRef=useRef<SharedHealth>({});const reportRef=useRef<(id:string,status:"available"|"failed")=>void>(()=>{});
  const [sourceChecks,setSourceChecks]=useState<Record<string,SourceCheck>>({});const checksRef=useRef<Record<string,SourceCheck>>({});const [scanVersion,setScanVersion]=useState(0);
- const updateCheck=(id:string,result:SourceCheck)=>{if(!(id in checksRef.current))return;checksRef.current={...checksRef.current,[id]:result};setSourceChecks(checksRef.current);if(result.status==="available"||result.status==="failed")reportRef.current(id,result.status);};
+ const updateCheck=(id:string,result:SourceCheck)=>{if(!(id in checksRef.current))return;if(result.status==="available")result={...result,okAt:result.okAt||data.current.health[id]?.okAt||Date.now()};checksRef.current={...checksRef.current,[id]:result};setSourceChecks(checksRef.current);if(result.status==="available"||result.status==="failed")reportRef.current(id,result.status);};
  const beginChecks=(c:Channel)=>{checksRef.current=initialSourceChecks(c);setSourceChecks(checksRef.current);setScanVersion(v=>v+1);};
  const [probingId,setProbingId]=useState("");const [catalog,setCatalog]=useState<Catalog>({version:"",syncedAt:0,channels:[]});const [prefs,setPrefs]=useState<LocalState>(defaults);const [selectedId,setSelectedId]=useState("");const [playback,setPlayback]=useState<PlayerState>({status:"idle"});const [notice,setNotice]=useState("");const [catalogLoading,setCatalogLoading]=useState(true);const [syncMessage,setSyncMessage]=useState("");const [ready,setReady]=useState(false);const [category,setCategory]=useState("央视");const [,setClock]=useState(0);
  const video=useRef<HTMLVideoElement>(null);const engine=useRef<PlayerEngine|undefined>(undefined);const data=useRef<LocalState>(defaults());const catalogRef=useRef<Catalog>(catalog);const probeStop=useRef<(()=>void)|undefined>(undefined);const refreshRef=useRef<((force?:boolean)=>Promise<void>)|undefined>(undefined);const selectedRef=useRef(selectedId);selectedRef.current=selectedId;
+ const sourceIndex=useMemo(()=>new Map(catalog.channels.flatMap(c=>c.sources.map(s=>[s.id,s] as const))),[catalog]);
+ const hosts=useMemo(()=>buildHostHealth(sourceIndex,prefs.health,deviceHealth,device,sourceChecks),[sourceIndex,prefs,deviceHealth,device,sourceChecks]);
+ const evaluation:EvaluationContext={device,local:prefs.health,devices:deviceHealth,checks:sourceChecks,hosts,now:Date.now()};
+ useEffect(()=>{if(engine.current)engine.current.hostHealth=hosts;},[hosts,ready]);
  const persistRef=useRef(()=>{});
  useEffect(()=>{
   let alive=true,saveTimer:ReturnType<typeof setTimeout>|undefined;const stopProbe=()=>{probeStop.current?.();probeStop.current=undefined;};
@@ -22,7 +27,7 @@ export function useTV(){
   const persist=()=>{if(!alive)return;setPrefs({...data.current,favorites:[...data.current.favorites],recent:[...data.current.recent]});clearTimeout(saveTimer);saveTimer=setTimeout(()=>void writeLocal("preferences",data.current).catch(storageError),100);};persistRef.current=persist;
   const currentDevice=deviceClass();setDevice(currentDevice);
   const loadingShared=new Map<string,Promise<SharedHealth>>();const reported=new Map<string,{status:string;at:number}>();
-  const publishShared=()=>{if(alive){sharedRef.current=healthForDevice(deviceHealthRef.current,currentDevice);setDeviceHealth({...deviceHealthRef.current});setSharedHealth({...sharedRef.current});if(engine.current)engine.current.sharedHealth=sharedRef.current;}};
+  const publishShared=()=>{if(alive){sharedRef.current=healthForDevice(deviceHealthRef.current,currentDevice);setDeviceHealth({...deviceHealthRef.current});setSharedHealth({...sharedRef.current});if(engine.current){engine.current.sharedHealth=sharedRef.current;engine.current.hostHealth=buildHostHealth(new Map(catalogRef.current.channels.flatMap(c=>c.sources.map(s=>[s.id,s] as const))),data.current.health,deviceHealthRef.current,currentDevice,checksRef.current);}}};
   const fetchShared=(channel:Channel):Promise<SharedHealth>=>{
    const pending=loadingShared.get(channel.id);if(pending)return pending;
    const task=(async()=>{try{
@@ -45,7 +50,7 @@ export function useTV(){
    }catch{/* A failed report does not change the local playback result. */}})();
   };
   const startInitial=()=>{const e=engine.current;if(!e||e.channel||!catalogRef.current.channels.length)return;const c=catalogRef.current.channels.find(c=>c.id===data.current.lastChannel)||catalogRef.current.channels.find(c=>c.id==="CCTV5+")||catalogRef.current.channels[0];setSelectedId(c.id);selectedRef.current=c.id;beginChecks(c);e.play(c);};
-  const acceptCatalog=(next:Catalog)=>{if(!alive)return;next={...next,channels:numberSources(mergeChannels([next.channels]))};catalogRef.current=next;pruneLocalSources(data.current,next);persist();const currentUrls=new Set(next.channels.flatMap(c=>c.sources.map(s=>s.id)));for(const url of Object.keys(deviceHealthRef.current))if(!currentUrls.has(url))delete deviceHealthRef.current[url];setCatalog(next);const e=engine.current;const updated=next.channels.find(c=>c.id===e?.channel?.id);if(e&&updated){const changed=e.channel&&fingerprint(e.channel)!==fingerprint(updated);e.channel=updated;if(changed){beginChecks(updated);if(e.current.source&&["playing","paused"].includes(e.current.status))updateCheck(e.current.source,{status:e.current.streamType==="live"?"available":"unconfirmed"});if(e.current.status==="unavailable")e.play(updated);}}startInitial();void fetchSharedCatalog();void writeLocal("catalog",next).catch(storageError);};
+  const acceptCatalog=(next:Catalog)=>{if(!alive)return;next={...next,channels:numberSources(mergeChannels([next.channels]))};catalogRef.current=next;pruneLocalSources(data.current,next);persist();const currentUrls=new Set(next.channels.flatMap(c=>c.sources.map(s=>s.id)));for(const url of Object.keys(deviceHealthRef.current))if(!currentUrls.has(url))delete deviceHealthRef.current[url];publishShared();setCatalog(next);const e=engine.current;const updated=next.channels.find(c=>c.id===e?.channel?.id);if(e&&updated){const changed=e.channel&&fingerprint(e.channel)!==fingerprint(updated);e.channel=updated;if(changed){beginChecks(updated);if(e.current.source&&["playing","paused"].includes(e.current.status))updateCheck(e.current.source,{status:e.current.streamType==="live"?"available":"unconfirmed"});if(e.current.status==="unavailable")e.play(updated);}}startInitial();void fetchSharedCatalog();void writeLocal("catalog",next).catch(storageError);};
   let refreshing=false;
   const refresh=async(force=false)=>{
    if(refreshing)return;refreshing=true;if(alive)setCatalogLoading(true);
@@ -97,7 +102,7 @@ export function useTV(){
   const scan=()=>{
    if(!alive)return;const e=engine.current;if(!e)return;
    if(!navigator.onLine||document.visibilityState!=="visible"||["connecting","recovering","offline"].includes(e.current.status)){schedule();return;}
-   const source=nextSourceToCheck({...channel,sources:rankedSources(channel.sources,checksRef.current,sharedRef.current)},checksRef.current,e.source?.id);if(!source)return;
+   const source=nextSourceToCheck({...channel,sources:[...channel.sources].sort((a,b)=>compareEvidence(attemptEvidence(a,data.current.health[a.id],sharedRef.current[a.id],e.hostHealth,device),attemptEvidence(b,data.current.health[b.id],sharedRef.current[b.id],e.hostHealth,device)))},checksRef.current,e.source?.id);if(!source)return;
    setProbingId(channel.id);updateCheck(source.id,{status:"pinging"});const started=performance.now();let connectMs:number|undefined;
    const element=document.createElement("video");element.muted=true;element.playsInline=true;element.setAttribute("aria-hidden","true");element.style.cssText="position:fixed;width:2px;height:2px;opacity:0;pointer-events:none;bottom:0;left:0;";document.body.appendChild(element);
    let stopped=false,connection:ReturnType<typeof connectMedia>|undefined;
@@ -118,11 +123,11 @@ export function useTV(){
  const toggleFavorite=()=>{const p=data.current;p.favorites=p.favorites.includes(selectedId)?p.favorites.filter(id=>id!==selectedId):[...p.favorites,selectedId];persistRef.current();};
  const setAuto=(value:boolean)=>{data.current.autoSwitch=value;if(engine.current)engine.current.auto=value;persistRef.current();};
  const setHideFailed=(value:boolean)=>{data.current.hideFailed=value;persistRef.current();};
- const hasFailed=(c:Channel)=>{const candidates=browserSources(c),now=Date.now();return candidates.length>0&&candidates.every(s=>!deviceSourceVisible(localSourceCheck(c.id===selectedId?sourceChecks[s.id]:undefined,prefs.health[s.id]),deviceHealth[s.id],device,true,now));};
+ const hasFailed=(c:Channel)=>{const candidates=browserSources(c);return candidates.length>0&&candidates.every(s=>!sourceStateVisible(evaluateSource(s,evaluation),device,true));};
  const selected=catalog.channels.find(c=>c.id===selectedId)||catalog.channels[0];
  const isUnavailable=(c:Channel)=>{const r=prefs.unavailable[c.id];return !!r&&r.until>Date.now()&&r.fingerprint===fingerprint(c);};
  const lastSuccess=(c:Channel)=>Math.max(0,...browserSources(c).filter(s=>prefs.health[s.id]?.verifiedLive&&(prefs.health[s.id]?.okAt||0)>(prefs.health[s.id]?.failedAt||0)).map(s=>prefs.health[s.id]?.okAt||0));
  const othersPlayable=(c:Channel)=>channelHasSharedSuccess(c,deviceHealth);
  const backupCount=(selected?browserSources(selected):[]).filter(s=>s.id!==engine.current?.source?.id&&prefs.health[s.id]?.verifiedLive&&Date.now()-(prefs.health[s.id]?.okAt||0)<10*60_000&&!(prefs.health[s.id]?.until>Date.now())).length;
- return {device,deviceHealth,catalog,prefs,selected,playback,probingId,sourceChecks:Object.fromEntries(Object.entries(sourceChecks).map(([id,check])=>[id,localSourceCheck(check,prefs.health[id])!])),sharedHealth,selectSource,recheckSources,setHideFailed,hasFailed,notice,catalogLoading,syncMessage,ready,category,setCategory,video,selectChannel,toggleFavorite,setAuto,isUnavailable,lastSuccess,backupCount,othersPlayable,retry:recheckSources,resume:()=>engine.current?.resume(),unmute:()=>{if(video.current)video.current.muted=false;},refresh:()=>refreshRef.current?.(true)};
+ return {evaluation,device,deviceHealth,catalog,prefs,selected,playback,probingId,sourceChecks:Object.fromEntries(Object.entries(sourceChecks).map(([id,check])=>[id,localSourceCheck(check,prefs.health[id])!])),sharedHealth,selectSource,recheckSources,setHideFailed,hasFailed,notice,catalogLoading,syncMessage,ready,category,setCategory,video,selectChannel,toggleFavorite,setAuto,isUnavailable,lastSuccess,backupCount,othersPlayable,retry:recheckSources,resume:()=>engine.current?.resume(),unmute:()=>{if(video.current)video.current.muted=false;},refresh:()=>refreshRef.current?.(true)};
 }
