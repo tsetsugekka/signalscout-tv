@@ -178,3 +178,20 @@ test('deep links use stable source numbers and wait for expanded catalogs before
  for(const name of ['日本映画','日本购物频道','[JP]日本映画','[HD]日本映画'])assert.equal(categoryPriority(name,'日本'),1,name);
  for(const name of ['NHK','テレビ東京','日本映画'])assert.equal(categoryPriority(name,'海外'),4,name);
  });
+
+test('corner bracket prefixes are exempt like square brackets without exempting source counts',async()=>{
+ const {isPrimaryChannel,channelListPage}=await import('../lib/channel-list');
+ const {classifyChannel,compareCategoryNames}=await import('../lib/channel-category');
+ const make=(name:string,count=1)=>({id:name,name,title:'',group:classifyChannel(name),sources:Array.from({length:count},(_,i)=>({id:`${name}${i}`,url:`https://example.com/${i}`}))});
+ const target=make('「US」 Bloomberg TV+2');
+ assert.equal(target.group,'海外');assert.equal(isPrimaryChannel(target),true);
+ for(const prefix of ['[','「']){
+  assert.equal(isPrimaryChannel(make(prefix+'任意名称',3)),true);
+  assert.equal(isPrimaryChannel(make(prefix+'任意名称',2)),false);
+  assert.equal(isPrimaryChannel(make('  '+prefix+'任意名称',3)),true);
+ }
+ for(const name of ['.Bloomberg','“Bloomberg','【US】Bloomberg'])assert.equal(isPrimaryChannel(make(name,3)),false,name);
+ const sorted=[make('CNN'),target,make('CNBC'),make('BBC'),make('普通频道',3)].sort((a,b)=>compareCategoryNames(a.name,b.name,'海外'));
+ assert.deepEqual(channelListPage(sorted,false,false,80).visible.map(c=>c.name),['「US」 Bloomberg TV+2','CNBC','CNN','BBC','普通频道']);
+ assert.equal(target.name,'「US」 Bloomberg TV+2');
+});

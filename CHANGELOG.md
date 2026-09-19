@@ -82,3 +82,7 @@
 
 - Rank locally unstable lines with same-platform shared success before those with opposite-platform shared success or no shared success, preserving local failure, filters and source numbers.
 - Hide web-direct restricted sources and channels with no remaining visible lines in the hide-failed mode.
+
+## Country-tagged channel visibility
+
+- Exempt 「 alongside [ from leading-punctuation deferral, so 「US」 Bloomberg TV+2 retains its priority. Source-count rules and channel identities remain unchanged.
