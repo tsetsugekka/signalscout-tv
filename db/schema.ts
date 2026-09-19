@@ -4,4 +4,4 @@ export const sourceHealth=sqliteTable("source_health",{source:text("source").pri
 
 export const deviceSourceHealth=sqliteTable("device_source_health",{source:text("source").notNull(),device:text("device").notNull(),okAt:integer("ok_at").notNull().default(0),failedAt:integer("failed_at").notNull().default(0)},table=>[primaryKey({columns:[table.source,table.device]})]);
 
-export const sourceVotes=sqliteTable("source_votes",{source:text("source").notNull(),device:text("device").notNull(),reporter:text("reporter").notNull(),okAt:integer("ok_at").notNull().default(0),failedAt:integer("failed_at").notNull().default(0)},table=>[primaryKey({columns:[table.source,table.device,table.reporter]})]);
+export const sourceVotes=sqliteTable("source_votes",{source:text("source").notNull(),device:text("device").notNull(),reporter:text("reporter").notNull(),okAt:integer("ok_at").notNull().default(0),failedAt:integer("failed_at").notNull().default(0),resolution:integer("resolution").notNull().default(0)},table=>[primaryKey({columns:[table.source,table.device,table.reporter]})]);

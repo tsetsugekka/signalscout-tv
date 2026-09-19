@@ -78,13 +78,24 @@ test('native inspection tolerates an unchanged sample and verifies a later playl
  try{v.advance(1);v.advance(4);await waitFor(()=>verified===1);assert.equal(requests,3);assert.equal(failed,0);}finally{c.stop();Object.defineProperty(globalThis,'fetch',{configurable:true,value:old});}
 });
 test('a fixed native playlist never becomes available despite moving video frames',async()=>{
- const old=globalThis.fetch;let requests=0,reason='',verified=0;
+ const old=globalThis.fetch;let requests=0,reason='',verified=0,suspect=false;
  Object.defineProperty(globalThis,'fetch',{configurable:true,value:async()=>{requests++;return new Response(manifest);}});
- const v=new Video(),c=connectMedia(v as unknown as HTMLVideoElement,channel.sources[0].url,{verified:()=>verified++,failure:r=>reason=r||'',blocked:()=>{}});
- try{v.advance(1);v.advance(24);await waitFor(()=>!!reason);assert.equal(requests,4);assert.equal(verified,0);assert.match(reason,/连续未更新/);}finally{c.stop();Object.defineProperty(globalThis,'fetch',{configurable:true,value:old});}
+ const v=new Video(),c=connectMedia(v as unknown as HTMLVideoElement,channel.sources[0].url,{verified:()=>verified++,failure:(r,clip)=>{reason=r||'';suspect=!!clip;},blocked:()=>{}});
+ try{v.advance(1);v.advance(24);await waitFor(()=>!!reason);assert.equal(requests,4);assert.equal(verified,0);assert.match(reason,/连续未更新/);assert.equal(suspect,true);}finally{c.stop();Object.defineProperty(globalThis,'fetch',{configurable:true,value:old});}
 });
 test('native decode failures include a diagnostic code',()=>{
  const v=new Video();Object.defineProperty(v,'error',{value:{code:3}});let reason='';
  const c=connectMedia(v as unknown as HTMLVideoElement,channel.sources[0].url,{verified:()=>{},failure:r=>reason=r||'',blocked:()=>{}});
  try{v.dispatchEvent(new Event('error'));assert.match(reason,/解码.*3/);}finally{c.stop();}
+});
+
+
+test('decoded resolution reports do not fabricate live success and retain the highest observed value',async()=>{
+ const old=globalThis.fetch;Object.defineProperty(globalThis,'fetch',{configurable:true,value:async()=>{throw new TypeError('inspection unavailable');}});
+ const v=new Video(),p=defaults(),reports:number[]=[];v.videoHeight=720;
+ const e=new PlayerEngine(v as unknown as HTMLVideoElement,p,()=>{},()=>{},()=>{});e.resolutionReport=(_id,height)=>reports.push(height);
+ try{e.play(channel);v.advance(1);v.advance(4);await tick();assert.deepEqual(reports,[720]);assert.equal(p.health[channel.sources[0].id].resolution,720);assert.equal(p.health[channel.sources[0].id].okAt,undefined);
+ v.videoHeight=1080;v.advance(5);v.videoHeight=480;v.advance(6);assert.deepEqual(reports,[720,1080]);assert.equal(p.health[channel.sources[0].id].resolution,1080);
+ recordSuccess(p,channel.sources[0].id);assert.equal(p.health[channel.sources[0].id].resolution,1080);
+ }finally{e.dispose();Object.defineProperty(globalThis,'fetch',{configurable:true,value:old});}
 });

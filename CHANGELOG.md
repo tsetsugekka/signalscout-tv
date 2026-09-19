@@ -108,3 +108,9 @@
 ## Unstable signal indicator
 
 - Distinguish recent/older success by four/three bars in the same green, possible by two amber bars, and unstable by one orange bar; keep offline/restricted slash indicators distinct. Stationary native playlists follow the existing local-failure/shared-vote rules.
+
+## Distinct instability and measured source quality
+
+- Restore 暂不可播 with the same zero-bar icon as 网页直连受限; reserve one-bar 不稳定 for suspect moving clips and local failure with shared success.
+- Prefer the highest actual decoded resolution over catalog quality labels, including across PC/mobile observers.
+- Add atomic per-observer/device resolution writes, independent metadata reports, an additive D1 migration and out-of-order maximum preservation.

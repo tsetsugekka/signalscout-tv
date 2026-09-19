@@ -11,9 +11,9 @@ import {attemptEvidence,compareEvidence,buildHostHealth,evaluateSource,sourceSta
 import {initialSourceChecks,nextSourceToCheck,type SourceCheck} from "./source-checks";
 export function useTV(){
  const [device,setDevice]=useState<DeviceClass>("pc");const [deviceHealth,setDeviceHealth]=useState<DeviceHealth>({});const deviceHealthRef=useRef<DeviceHealth>({});
- const [sharedHealth,setSharedHealth]=useState<SharedHealth>({});const sharedRef=useRef<SharedHealth>({});const reportRef=useRef<(id:string,status:"available"|"failed")=>void>(()=>{});
+ const [sharedHealth,setSharedHealth]=useState<SharedHealth>({});const sharedRef=useRef<SharedHealth>({});const reportRef=useRef<(id:string,status:"available"|"failed"|"resolution",resolution?:number)=>void>(()=>{});
  const [sourceChecks,setSourceChecks]=useState<Record<string,SourceCheck>>({});const checksRef=useRef<Record<string,SourceCheck>>({});const [scanVersion,setScanVersion]=useState(0);
- const updateCheck=(id:string,result:SourceCheck)=>{if(!(id in checksRef.current))return;if(result.status==="available")result={...result,okAt:result.okAt||data.current.health[id]?.okAt||Date.now()};checksRef.current={...checksRef.current,[id]:result};setSourceChecks(checksRef.current);if(result.status==="available"||result.status==="failed")reportRef.current(id,result.status);};
+ const updateCheck=(id:string,result:SourceCheck)=>{if(!(id in checksRef.current))return;if(result.status==="available")result={...result,okAt:result.okAt||data.current.health[id]?.okAt||Date.now()};checksRef.current={...checksRef.current,[id]:result};setSourceChecks(checksRef.current);if(result.status==="available"||result.status==="failed")reportRef.current(id,result.status,data.current.health[id]?.resolution);};
  const beginChecks=(c:Channel)=>{checksRef.current=initialSourceChecks(c);setSourceChecks(checksRef.current);setScanVersion(v=>v+1);};
  const [probingId,setProbingId]=useState("");const [catalog,setCatalog]=useState<Catalog>({version:"",syncedAt:0,channels:[]});const [prefs,setPrefs]=useState<LocalState>(defaults);const [selectedId,setSelectedId]=useState("");const [playback,setPlayback]=useState<PlayerState>({status:"idle"});const [notice,setNotice]=useState("");const [linkNotice,setLinkNotice]=useState("");const [catalogLoading,setCatalogLoading]=useState(true);const [syncMessage,setSyncMessage]=useState("");const [ready,setReady]=useState(false);const [category,setCategory]=useState("央视");const [,setClock]=useState(0);
  const video=useRef<HTMLVideoElement>(null);const engine=useRef<PlayerEngine|undefined>(undefined);const data=useRef<LocalState>(defaults());const catalogRef=useRef<Catalog>(catalog);const probeStop=useRef<(()=>void)|undefined>(undefined);const refreshRef=useRef<((force?:boolean)=>Promise<void>)|undefined>(undefined);const selectedRef=useRef(selectedId);selectedRef.current=selectedId;
@@ -28,7 +28,7 @@ export function useTV(){
   const persist=()=>{if(!alive)return;setPrefs({...data.current,favorites:[...data.current.favorites],recent:[...data.current.recent]});clearTimeout(saveTimer);saveTimer=setTimeout(()=>void writeLocal("preferences",data.current).catch(storageError),100);};persistRef.current=persist;
   const initialLink=readPlaybackLink(window.location.search);
   const currentDevice=deviceClass();setDevice(currentDevice);
-  const loadingShared=new Map<string,Promise<SharedHealth>>();const reported=new Map<string,{status:string;at:number}>();
+  const loadingShared=new Map<string,Promise<SharedHealth>>();const reported=new Map<string,{status:string;at:number;resolution:number}>();
   const publishShared=()=>{if(alive){sharedRef.current=healthForDevice(deviceHealthRef.current,currentDevice);setDeviceHealth({...deviceHealthRef.current});setSharedHealth({...sharedRef.current});if(engine.current){engine.current.sharedHealth=sharedRef.current;engine.current.hostHealth=buildHostHealth(new Map(catalogRef.current.channels.flatMap(c=>c.sources.map(s=>[s.id,s] as const))),data.current.health,deviceHealthRef.current,currentDevice,checksRef.current);}}};
   const fetchShared=(channel:Channel):Promise<SharedHealth>=>{
    const pending=loadingShared.get(channel.id);if(pending)return pending;
@@ -43,10 +43,10 @@ export function useTV(){
    const response=await fetch('/api/source-health?scope=catalog',{cache:'no-store',headers:{'X-Playback-Observer':data.current.observer},signal:AbortSignal.timeout(10000)});
    if(response.ok){const result=await response.json() as {devices:DeviceHealth;asOf:number};if(alive){deviceHealthRef.current=mergeDeviceHealth(deviceHealthRef.current,result.devices,[...new Set([...Object.keys(deviceHealthRef.current),...Object.keys(result.devices)])],result.asOf);publishShared();}}
   }catch{/* Metadata failure must not block playback. */}finally{loadingSharedCatalog=false;}};
-  reportRef.current=(source,status)=>{
-   const last=reported.get(source),now=Date.now();if(last?.status===status&&now-last.at<60_000)return;reported.set(source,{status,at:now});
+  reportRef.current=(source,status,resolution)=>{
+   const last=reported.get(source),now=Date.now();if(last?.status===status&&now-last.at<60_000&&(resolution||0)<=last.resolution)return;reported.set(source,{status,at:now,resolution:Math.max(resolution||0,last?.resolution||0)});
    void (async()=>{try{
-    const response=await fetch("/api/source-health",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({source,status,device:currentDevice,observer:data.current.observer}),signal:AbortSignal.timeout(5000)});
+    const response=await fetch("/api/source-health",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({source,status,resolution,device:currentDevice,observer:data.current.observer}),signal:AbortSignal.timeout(5000)});
     if(!response.ok)return;const result=await response.json() as {at:number;devices:DeviceHealth};if(!alive)return;
     deviceHealthRef.current=mergeDeviceHealth(deviceHealthRef.current,result.devices,[source],result.at);publishShared();
    }catch{/* A failed report does not change the local playback result. */}})();
@@ -84,7 +84,7 @@ export function useTV(){
   void (async()=>{
    try{const [saved,cached]=await Promise.all([readLocal<LocalState>("preferences"),readLocal<Catalog>("catalog")]);if(!alive)return;if(saved)data.current={...defaults(),...normalizeLocalChannels(saved),sourceFilter:readSourceFilter(saved)};if((data.current.relayVersion||0)<3){data.current.unavailable={};for(const [url,health] of Object.entries(data.current.health))if(url.startsWith("http:")&&(health.failedAt||0)>(health.okAt||0)){if(health.verifiedLive&&health.okAt)data.current.health[url]={okAt:health.okAt,verifiedLive:true,failures:0,until:0};else delete data.current.health[url];}data.current.relayVersion=3;}if((data.current.playbackVersion||0)<1){data.current.unavailable={};for(const h of Object.values(data.current.health)){h.failures=0;h.until=0;delete h.failedAt;}data.current.playbackVersion=1;}if(cached?.channels?.length)acceptCatalog(cached);}catch{storageError();}
    if(!alive||!video.current)return;data.current.observer||=crypto.randomUUID();persist();setPrefs({...data.current});
-   engine.current=new PlayerEngine(video.current,data.current,s=>{if(alive)setPlayback(s);},persist,stopProbe,(id,result)=>{if(alive)updateCheck(id,result);});engine.current.auto=data.current.autoSwitch;engine.current.loadShared=fetchShared;
+   engine.current=new PlayerEngine(video.current,data.current,s=>{if(alive)setPlayback(s);},persist,stopProbe,(id,result)=>{if(alive)updateCheck(id,result);});engine.current.resolutionReport=(source,height)=>reportRef.current(source,"resolution",height);engine.current.auto=data.current.autoSwitch;engine.current.loadShared=fetchShared;
    setReady(true);video.current.muted=true;void refresh().finally(()=>{if(alive)startInitial(true);});
   })();
   const onVisibility=()=>{stopProbe();if(document.visibilityState==="visible"&&navigator.onLine){const e=engine.current;if(e?.current.status==="offline"&&e.channel)e.play(e.channel);if(Date.now()-catalogRef.current.syncedAt>3600_000)void refresh();}};
@@ -120,7 +120,8 @@ export function useTV(){
     reachable:(ms)=>{if(!alive)return;connectMs=ms;updateCheck(source.id,{status:"checking",connectMs:ms});},
     unconfirmed:()=>{if(!alive)return;updateCheck(source.id,{status:"unconfirmed",reason:"画面可播，直播状态待确认"});stop();},
     verified:()=>{if(!alive)return;recordSuccess(data.current,source.id);delete data.current.unavailable[channel.id];updateCheck(source.id,{status:"available",elapsedMs:performance.now()-started,connectMs});persistRef.current();stop();if(e.current.status==="unavailable")e.play(channel,false,source.id);},
-    failure:(reason)=>{if(!alive)return;recordFailure(data.current,source.id);updateCheck(source.id,{status:"failed",connectMs,reason:reason||"连通但未能确认直播画面"});persistRef.current();stop();},
+    resolution:(height)=>{if(!alive)return;const old=data.current.health[source.id]||{failures:0,until:0};data.current.health[source.id]={...old,resolution:Math.max(old.resolution||0,height)};persistRef.current();reportRef.current(source.id,"resolution",height);},
+    failure:(reason,suspect)=>{if(!alive)return;recordFailure(data.current,source.id,Date.now(),suspect);updateCheck(source.id,{status:"failed",suspect,connectMs,reason:reason||"连通但未能确认直播画面"});persistRef.current();stop();},
     blocked:()=>{if(!alive)return;updateCheck(source.id,{status:"blocked",reason:"浏览器限制自动检测，选此线路后点击播放"});stop();}
    },true);
   };

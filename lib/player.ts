@@ -9,7 +9,7 @@ import { recordFailure,recordSuccess,type LocalState } from "./local-state";
 export type PlaybackStatus="idle"|"connecting"|"playing"|"paused"|"blocked"|"recovering"|"unavailable"|"offline"|"stopped";
 export type PlayerState={status:PlaybackStatus;reason?:string;attemptSource?:string;source?:string;resolution?:string;streamType?:"live"|"unknown"};
 type Connection={stop:()=>void;resume:()=>void};
-type Callbacks={verified:()=>void;unconfirmed?:()=>void;failure:(reason?:string)=>void;reachable?:(ms:number)=>void;blocked:()=>void;pause?:()=>void;playing?:()=>void;recovering?:()=>void;streamType?:(type:"live"|"unknown")=>void};
+type Callbacks={verified:()=>void;unconfirmed?:()=>void;failure:(reason?:string,suspect?:boolean)=>void;resolution?:(height:number)=>void;reachable?:(ms:number)=>void;blocked:()=>void;pause?:()=>void;playing?:()=>void;recovering?:()=>void;streamType?:(type:"live"|"unknown")=>void};
 export function playlistType(text:string):"live"|"vod"|"master"|"unknown"{
  if(!text.trimStart().startsWith("#EXTM3U"))return "unknown";
  if(/#EXT-X-ENDLIST|#EXT-X-PLAYLIST-TYPE:VOD/.test(text))return "vod";
@@ -42,17 +42,18 @@ export function connectMedia(video:HTMLVideoElement,url:string,callbacks:Callbac
  const originalUrl=url;const native=!!video.canPlayType("application/vnd.apple.mpegurl");
  const relayed=url.startsWith("http:"),connectTimeout=relayed?45000:6000,verificationBudget=relayed?90000:30000;
  url=playbackUrl(url);
- let disposed=false,verified=false,unconfirmed=false,nativeInspectionDone=false,nativeRejected=false,nativeFailureReason="此线路未确认是持续更新的直播列表",permissionBlocked=false,userPaused=false,recovered=false,baseline=-1,frames=0,frameId:number|undefined,lastProgress=performance.now(),lastTime=-1,activeMs=0,lastTick=performance.now();
+ let disposed=false,verified=false,unconfirmed=false,nativeInspectionDone=false,nativeRejected=false,nativeStale=false,nativeFailureReason="此线路未确认是持续更新的直播列表",permissionBlocked=false,userPaused=false,recovered=false,baseline=-1,frames=0,measuredHeight=0,frameId:number|undefined,lastProgress=performance.now(),lastTime=-1,activeMs=0,lastTick=performance.now();
  let hls:Hls|undefined;let inspected=false;const inspection=new AbortController();const inspectionTimeout=setTimeout(()=>inspection.abort(),verificationBudget-1000);
- const fail=(reason?:string)=>{if(!disposed&&!permissionBlocked&&!userPaused&&navigator.onLine&&document.visibilityState==="visible")callbacks.failure(reason);};
+ const fail=(reason?:string,suspect=false)=>{if(!disposed&&!permissionBlocked&&!userPaused&&navigator.onLine&&document.visibilityState==="visible")callbacks.failure(reason,suspect);};
  const attemptPlay=()=>{permissionBlocked=false;userPaused=false;lastProgress=performance.now();void video.play().catch((e:DOMException)=>{if(disposed||e.name==="AbortError")return;if(e.name==="NotAllowedError"){permissionBlocked=true;callbacks.blocked();}else fail();});};
  const sample=()=>{
   if(disposed||video.paused||!navigator.onLine||document.visibilityState!=="visible")return;
-  if(nativeRejected){fail(nativeFailureReason);return;}
+  if(nativeRejected){fail(nativeFailureReason,nativeStale&&measuredHeight>0);return;}
   if(video.currentTime>lastTime+.04){lastProgress=performance.now();lastTime=video.currentTime;}
   if(video.videoWidth>0&&video.readyState>=2){
    if(baseline<0)baseline=video.currentTime;
    const hasFrames=!("requestVideoFrameCallback" in video)||frames>=2;
+   if(hasFrames&&video.currentTime-baseline>=2&&video.videoHeight>measuredHeight){measuredHeight=video.videoHeight;callbacks.resolution?.(measuredHeight);}
    if(!verified&&hasFrames&&video.currentTime-baseline>=2){if(inspected){verified=true;callbacks.verified();}else if(native&&(!probe||nativeInspectionDone)&&!unconfirmed){unconfirmed=true;callbacks.unconfirmed?.();}}
   }
  };
@@ -73,7 +74,7 @@ export function connectMedia(video:HTMLVideoElement,url:string,callbacks:Callbac
   }
   finally{clearTimeout(inspectionTimeout);nativeInspectionDone=true;}
   if(disposed)return;
-  if(live===false||live==="stale"){nativeRejected=true;if(live==="stale")nativeFailureReason="播放列表连续未更新，可能是固定片段或失效直播";fail(nativeFailureReason);return;}
+  if(live===false||live==="stale"){nativeRejected=true;nativeStale=live==="stale";if(live==="stale")nativeFailureReason="播放列表连续未更新，可能是固定片段或失效直播";fail(nativeFailureReason,nativeStale&&measuredHeight>0);return;}
   if(live===true){inspected=true;callbacks.streamType?.("live");}
   sample();
  };
@@ -111,6 +112,7 @@ export function orderedSources(channel:Channel,state:LocalState,attempted=new Se
 }
 export class PlayerEngine{
  private nextTimer:ReturnType<typeof setTimeout>|undefined;private mobile=deviceClass()==="mobile";
+ resolutionReport?:(source:string,height:number)=>void;
  sharedHealth:SharedHealth={};hostHealth:HostHealth=new Map();loadShared?:(channel:Channel)=>Promise<SharedHealth>;
  preferredSourceId?:string;connection?:Connection;channel?:Channel;source?:Source;attempted=new Set<string>();generation=0;auto=true;disposed=false;current:PlayerState={status:"idle"};
  constructor(public video:HTMLVideoElement,public local:LocalState,public update:(state:PlayerState)=>void,public persist:()=>void,public suspendProbe:()=>void,public sourceCheck:(id:string,result:SourceCheck)=>void=()=>{}){}
@@ -133,7 +135,8 @@ export class PlayerEngine{
    streamType:(type)=>{streamType=type;if(gen===this.generation&&this.current.source)this.emit({...this.current,streamType:type});},
    unconfirmed:()=>{if(gen!==this.generation||this.disposed)return;this.sourceCheck(source.id,{status:"unconfirmed",reason:"画面已播放，直播状态待确认"});this.emit({status:"playing",source:source.id,resolution:`${this.video.videoHeight}p`,streamType:"unknown"});},
    verified:()=>{if(gen!==this.generation||this.disposed)return;recordSuccess(this.local,source.id);this.sourceCheck(source.id,{status:"available",elapsedMs:performance.now()-started,connectMs});delete this.local.unavailable[channel.id];this.local.lastPlayedAt[channel.id]=Date.now();this.local.lastChannel=channel.id;this.local.lastPlayedSources[channel.id]=source.id;this.local.recent=[channel.id,...this.local.recent.filter(id=>id!==channel.id)].slice(0,20);this.persist();this.emit({status:"playing",source:source.id,resolution:`${this.video.videoHeight}p`,streamType});},
-   failure:(reason)=>{if(gen!==this.generation||this.disposed)return;const hadPlayed=!!this.current.source&&this.current.streamType==="live";recordFailure(this.local,source.id);this.sourceCheck(source.id,{status:"failed",connectMs,reason:reason||"连通但未能确认直播画面"});this.persist();this.connection?.stop();if(hadPlayed&&!this.auto){this.emit({status:"stopped",reason:"播放已中断，点击重新连接继续。"});return;}if(this.mobile){this.emit({status:hadPlayed||recovering?"recovering":"connecting"});this.nextTimer=setTimeout(()=>this.next(hadPlayed||recovering),1500);}else this.next(hadPlayed||recovering);},
+   resolution:(height)=>{if(gen!==this.generation||this.disposed)return;const old=this.local.health[source.id]||{failures:0,until:0};this.local.health[source.id]={...old,resolution:Math.max(old.resolution||0,height)};this.persist();this.resolutionReport?.(source.id,height);},
+   failure:(reason,suspect)=>{if(gen!==this.generation||this.disposed)return;const hadPlayed=!!this.current.source&&this.current.streamType==="live";recordFailure(this.local,source.id,Date.now(),suspect);this.sourceCheck(source.id,{status:"failed",suspect,connectMs,reason:reason||"连通但未能确认直播画面"});this.persist();this.connection?.stop();if(hadPlayed&&!this.auto){this.emit({status:"stopped",reason:"播放已中断，点击重新连接继续。"});return;}if(this.mobile){this.emit({status:hadPlayed||recovering?"recovering":"connecting"});this.nextTimer=setTimeout(()=>this.next(hadPlayed||recovering),1500);}else this.next(hadPlayed||recovering);},
    blocked:()=>{if(gen===this.generation){this.sourceCheck(source.id,{status:"blocked",reason:"浏览器要求点击播放后验证"});this.emit({status:"blocked",attemptSource:source.id});}},
    pause:()=>{if(gen===this.generation)this.emit({...this.current,status:"paused"});},
    playing:()=>{if(gen===this.generation)this.emit({...this.current,status:"playing"});},

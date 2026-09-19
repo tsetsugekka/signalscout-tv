@@ -1,0 +1,1 @@
+ALTER TABLE `source_votes` ADD `resolution` integer DEFAULT 0 NOT NULL;

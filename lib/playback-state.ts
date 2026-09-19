@@ -88,7 +88,7 @@ export function attemptEvidence(source:Source,health:Health|undefined,shared:Sha
  const community=sharedEvidence(shared,now);return community.status!=='unknown'?community:hostHint(source,device,hosts);
 }
 
-export type SignalState='recent'|'available'|'possible'|'pending'|'unavailable'|'restricted'|'offline'|'checking';
+export type SignalState='recent'|'available'|'possible'|'pending'|'unstable'|'unavailable'|'restricted'|'offline'|'checking';
 export type ChannelState={signal:SignalState;label:string};
 export function channelPlaybackPriority(channel:Channel,ctx:EvaluationContext){
  const state=evaluateChannel(channel,ctx).signal;
@@ -103,8 +103,14 @@ export function evaluateChannel(channel:Channel,ctx:EvaluationContext,foreground
  const best=states.sort((a,b)=>compareEvidence(a.current,b.current))[0];
  if(isSuccess(best.current))return {signal:best.current.status as 'recent'|'available',label:best.reference?`${deviceLabel(best.reference)}${best.current.status==='recent'?'近期可播':'可播'} · ${deviceLabel(ctx.device)}待验证`:evidenceLabel(best.current)};
  if(best.current.status==='possible')return {signal:'possible',label:'可能可播'};
+ if(states.some(s=>!!s.communitySupport)||sources.some(s=>evaluateSource(s,ctx).current.status==='unstable'&&(ctx.checks[s.id]?.suspect||ctx.local[s.id]?.suspect)))return {signal:'unstable',label:'不稳定'};
  if(states.some(s=>s.current.status==='unknown')){
   return {signal:'pending',label:foreground?.status==='blocked'?'待点击验证':'待本机验证'};
  }
- return states.every(s=>s.current.status==='unsupported')?{signal:'restricted',label:'网页直连受限'}:{signal:'unavailable',label:'不稳定'};
+ return states.every(s=>s.current.status==='unsupported')?{signal:'restricted',label:'网页直连受限'}:{signal:'unavailable',label:'暂不可播'};
+}
+
+export function sourceQuality(source:Source,ctx:EvaluationContext){
+ const height=Math.max(ctx.local[source.id]?.resolution||0,ctx.checks[source.id]?.resolution||0,ctx.devices[source.id]?.pc?.resolution||0,ctx.devices[source.id]?.mobile?.resolution||0);
+ return {labels:height?[`${height}p`]:source.qualities||[],measured:height>0};
 }

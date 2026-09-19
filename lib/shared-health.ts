@@ -1,7 +1,7 @@
 import type {DeviceClass} from './device-class';
 import type {Source} from './catalog';
 import type {SourceCheck} from './source-checks';
-export type SharedHealthEntry={okAt:number;failedAt:number};
+export type SharedHealthEntry={okAt:number;failedAt:number;resolution?:number};
 export type SharedHealth=Record<string,SharedHealthEntry>;
 export type DeviceHealth=Record<string,Partial<Record<DeviceClass,SharedHealthEntry>>>;
 export function healthForDevice(records:DeviceHealth,device:DeviceClass,now=Date.now()):SharedHealth{
@@ -19,7 +19,7 @@ export function healthForDevice(records:DeviceHealth,device:DeviceClass,now=Date
 }
 export function mergeDeviceHealth(current:DeviceHealth,incoming:DeviceHealth,urls:string[],asOf:number):DeviceHealth{
  const next={...current};
- for(const url of urls){const entry={...next[url]};for(const device of ["pc","mobile"] as const){const fresh=incoming[url]?.[device],old=entry[device];if(fresh&&(Math.max(fresh.okAt,fresh.failedAt)>=Math.max(old?.okAt||0,old?.failedAt||0)||Math.max(old?.okAt||0,old?.failedAt||0)<=asOf))entry[device]=fresh;else if(!fresh&&Math.max(old?.okAt||0,old?.failedAt||0)<=asOf)delete entry[device];}if(Object.keys(entry).length)next[url]=entry;else delete next[url];}
+ for(const url of urls){const entry={...next[url]};for(const device of ["pc","mobile"] as const){const fresh=incoming[url]?.[device],old=entry[device];if(fresh&&(Math.max(fresh.okAt,fresh.failedAt)>=Math.max(old?.okAt||0,old?.failedAt||0)||Math.max(old?.okAt||0,old?.failedAt||0)<=asOf))entry[device]={...fresh,...(Math.max(old?.resolution||0,fresh.resolution||0)?{resolution:Math.max(old?.resolution||0,fresh.resolution||0)}:{})};else if(!fresh&&Math.max(old?.okAt||0,old?.failedAt||0)<=asOf)delete entry[device];}if(Object.keys(entry).length)next[url]=entry;else delete next[url];}
  return next;
 }
 export function sharedStatus(entry:SharedHealthEntry|undefined,now=Date.now()):'available'|'unstable'|'unknown'{

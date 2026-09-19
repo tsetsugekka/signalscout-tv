@@ -125,3 +125,18 @@ test('shared-playable channels need one successful source on either device',asyn
  assert.equal(channelHasSharedSuccess(channel,{s:{pc:{okAt:1,failedAt:2}}}),false);
  assert.equal(channelHasSharedSuccess(channel,{other:{pc:{okAt:1,failedAt:0}}}),false);
 });
+
+
+test('resolution-only reports preserve unknown availability and aggregate maximum per device',async()=>{
+ const {summarizeVotes,validResolution}=await import('../lib/source-votes');
+ const base={source:'s',device:'pc' as const,reporter:'a',ok_at:0,failed_at:0};
+ const result=summarizeVotes([{...base,resolution:720},{...base,reporter:'b',resolution:1080},{...base,device:'mobile',reporter:'c',resolution:480}]);
+ assert.equal(result.s.pc?.resolution,1080);assert.equal(result.s.mobile?.resolution,480);assert.equal(sharedStatus(result.s.pc),'unknown');
+ for(const value of [0,-1,720.5,'1080',16385,null])assert.equal(validResolution(value),false);assert.equal(validResolution(1080),true);
+});
+test('out-of-order shared snapshots cannot lower an observed maximum resolution',async()=>{
+ const {mergeDeviceHealth}=await import('../lib/shared-health');
+ const current={s:{pc:{okAt:1,failedAt:0,resolution:1080}}};
+ const next=mergeDeviceHealth(current,{s:{pc:{okAt:1,failedAt:0,resolution:720}}},['s'],2);
+ assert.equal(next.s.pc?.resolution,1080);
+});

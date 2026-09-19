@@ -1,13 +1,13 @@
 import {catalogDb} from '@/db/catalog';
 import {catalogSourceSet,catalogChannel,catalogSource} from '@/lib/relay-state';
 import {type DeviceHealth} from '@/lib/shared-health';
-import {summarizeVotes,observerHash,validObserver,type SourceVote} from '@/lib/source-votes';
+import {SOURCE_VOTE_UPSERT,validResolution,summarizeVotes,observerHash,validObserver,type SourceVote} from '@/lib/source-votes';
 async function readHealth(sources:string[],observer?:string){
  const db=catalogDb(),legacy:DeviceHealth={},votes:SourceVote[]=[],hashes:Record<string,string>={};
  for(let i=0;i<sources.length;i+=80){const batch=sources.slice(i,i+80),marks=batch.map(()=>'?').join(',');
   const rows=await db.prepare(`SELECT source, device, ok_at FROM device_source_health WHERE source IN (${marks}) AND ok_at>0`).bind(...batch).all<{source:string;device:'pc'|'mobile';ok_at:number}>();
   for(const row of rows.results)(legacy[row.source]??={})[row.device]={okAt:row.ok_at,failedAt:0};
-  const reports=await db.prepare(`SELECT source,device,reporter,ok_at,failed_at FROM source_votes WHERE source IN (${marks})`).bind(...batch).all<SourceVote>();votes.push(...reports.results);
+  const reports=await db.prepare(`SELECT source,device,reporter,ok_at,failed_at,resolution FROM source_votes WHERE source IN (${marks})`).bind(...batch).all<SourceVote>();votes.push(...reports.results);
  }
  if(observer)await Promise.all(sources.map(async source=>{hashes[source]=await observerHash(source,observer);}));
  return summarizeVotes(votes,legacy,hashes);
@@ -36,11 +36,12 @@ export async function POST(request:Request){
   while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>16_384){await reader.cancel();return json({error:'Report too large'},413);}chunks.push(value);}
   const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
   const data=JSON.parse(new TextDecoder().decode(bytes));
-  if(typeof data.source!=='string'||data.source.length>8192||!['available','failed'].includes(data.status)||!['pc','mobile'].includes(data.device)||!validObserver(data.observer))return json({error:'Invalid report'},400);
+  if(typeof data.source!=='string'||data.source.length>8192||!['available','failed','resolution'].includes(data.status)||!['pc','mobile'].includes(data.device)||!validObserver(data.observer))return json({error:'Invalid report'},400);
+  if(data.resolution!==undefined&&!validResolution(data.resolution)||data.status==='resolution'&&!validResolution(data.resolution))return json({error:'Invalid resolution'},400);
   if(!await catalogSource(data.source))return json({error:'Unknown source'},404);
   const now=Date.now(),ok=data.status==='available';
   const reporter=await observerHash(data.source,data.observer);
-  await catalogDb().prepare(`INSERT INTO source_votes (source,device,reporter,ok_at,failed_at) VALUES (?,?,?,?,?) ON CONFLICT(source,device,reporter) DO UPDATE SET ok_at=MAX(source_votes.ok_at,excluded.ok_at),failed_at=MAX(source_votes.failed_at,excluded.failed_at)`).bind(data.source,data.device,reporter,ok?now:0,ok?0:now).run();
+  await catalogDb().prepare(SOURCE_VOTE_UPSERT).bind(data.source,data.device,reporter,ok?now:0,data.status==='failed'?now:0,data.resolution||0).run();
   return json({accepted:true,at:now,devices:await readHealth([data.source],data.observer)});
  }catch{return json({error:'Report could not be saved'},503);}
 }
