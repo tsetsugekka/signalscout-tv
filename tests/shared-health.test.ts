@@ -79,17 +79,18 @@ test('hide-failed uses PC instability on desktop, and either device instability 
  assert.equal(visible({status:'failed'},undefined,'pc',true,now),false);
 });
 
-test('shared success persists until two distinct other browsers fail after the latest success',async()=>{
+test('shared success requires ten distinct failures after latest success on the same device',async()=>{
  const {summarizeVotes}=await import('../lib/source-votes');
- const success={source:'s',device:'pc' as const,reporter:'a',ok_at:1,failed_at:0};
- const fail=(reporter:string,failed_at:number)=>({...success,reporter,ok_at:0,failed_at});
- assert.equal(sharedStatus(summarizeVotes([success]).s.pc,now),'available');
- assert.equal(sharedStatus(summarizeVotes([success,fail('b',2),fail('b',3)]).s.pc,now),'available');
- assert.equal(sharedStatus(summarizeVotes([{...success,failed_at:2},fail('b',3)],{},{s:'a'}).s.pc,now),'available');
- assert.equal(sharedStatus(summarizeVotes([success,fail('b',2),fail('c',3)]).s.pc,now),'unstable');
- assert.equal(sharedStatus(summarizeVotes([{...success,ok_at:4},fail('b',2),fail('c',3)]).s.pc,now),'available');
- const mixed=summarizeVotes([success,fail('b',2),{...fail('c',3),device:'mobile'}]);
+ const success={source:'s',device:'pc' as const,reporter:'success',ok_at:1,failed_at:0};
+ const failures=Array.from({length:10},(_,i)=>({...success,reporter:`v${i}`,ok_at:0,failed_at:i+2}));
+ const status=(rows:typeof failures)=>sharedStatus(summarizeVotes([success,...rows]).s.pc,now);
+ assert.equal(status(failures.slice(0,9)),'available');
+ assert.equal(status([...failures.slice(0,9),failures[0]]),'available');
+ assert.equal(status(failures),'unstable');
+ assert.equal(status([...failures,{...success,ok_at:12}]),'available');
+ const mixed=summarizeVotes([success,...failures.slice(0,9),{...failures[9],device:'mobile'}]);
  assert.equal(sharedStatus(mixed.s.pc,now),'available');assert.equal(sharedStatus(mixed.s.mobile,now),'unknown');
+ assert.equal(sharedStatus(summarizeVotes(failures.slice(0,2)).s.pc,now),'unstable');
 });
 test('legacy successes survive but unattributed failures cannot count as people',async()=>{
  const {summarizeVotes,observerHash}=await import('../lib/source-votes');
@@ -97,17 +98,24 @@ test('legacy successes survive but unattributed failures cannot count as people'
  assert.notEqual(await observerHash('s','one'),await observerHash('other','one'));
 });
 
-test('shared success protects 24 hours, then requires two other browser failures; self vote is excluded',async()=>{
+test('ten failures respect protection, exclude the viewer and reset on newer success',async()=>{
  const {summarizeVotes,SUCCESS_PROTECTION}=await import('../lib/source-votes');const start=1000;
- const rows=[{source:'s',device:'pc' as const,reporter:'a',ok_at:start,failed_at:start+1},{source:'s',device:'pc' as const,reporter:'b',ok_at:0,failed_at:start+2}];
+ const rows=Array.from({length:10},(_,i)=>({source:'s',device:'pc' as const,reporter:`v${i}`,ok_at:i===0?start:0,failed_at:start+i+1}));
  const status=(viewer:string,time:number)=>sharedStatus(summarizeVotes(rows,{},{s:viewer},time).s.pc,time);
- assert.equal(status('c',start+SUCCESS_PROTECTION-1),'available');
- assert.equal(status('c',start+SUCCESS_PROTECTION),'unstable');
- assert.equal(status('a',start+SUCCESS_PROTECTION),'available');
- rows.push({source:'s',device:'pc',reporter:'c',ok_at:0,failed_at:start+3});
- assert.equal(status('a',start+SUCCESS_PROTECTION),'unstable');
+ assert.equal(status('other',start+SUCCESS_PROTECTION-1),'available');
+ assert.equal(status('other',start+SUCCESS_PROTECTION),'unstable');
+ assert.equal(status('v0',start+SUCCESS_PROTECTION),'available');
+ rows.push({source:'s',device:'pc',reporter:'v10',ok_at:0,failed_at:start+11});
+ assert.equal(status('v0',start+SUCCESS_PROTECTION),'unstable');
  rows[0].ok_at=start+SUCCESS_PROTECTION+1;
- assert.equal(status('c',start+2*SUCCESS_PROTECTION),'available');
+ assert.equal(status('other',start+2*SUCCESS_PROTECTION),'available');
+});
+test('authoritative snapshot clears old two-vote instability without clearing local records',async()=>{
+ const {mergeDeviceHealth}=await import('../lib/shared-health');
+ const old={s:{pc:{okAt:1,failedAt:10}}};
+ const fresh={s:{pc:{okAt:1,failedAt:0}}};
+ assert.deepEqual(mergeDeviceHealth(old,fresh,['s'],11),fresh);
+ assert.deepEqual(mergeDeviceHealth(old,fresh,['s'],5),old);
 });
 
 test('shared-playable channels need one successful source on either device',async()=>{

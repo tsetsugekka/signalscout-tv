@@ -19,7 +19,7 @@ export function healthForDevice(records:DeviceHealth,device:DeviceClass,now=Date
 }
 export function mergeDeviceHealth(current:DeviceHealth,incoming:DeviceHealth,urls:string[],asOf:number):DeviceHealth{
  const next={...current};
- for(const url of urls){const entry={...next[url]};for(const device of ["pc","mobile"] as const){const fresh=incoming[url]?.[device],old=entry[device];if(fresh&&Math.max(fresh.okAt,fresh.failedAt)>=Math.max(old?.okAt||0,old?.failedAt||0))entry[device]=fresh;else if(!fresh&&Math.max(old?.okAt||0,old?.failedAt||0)<=asOf)delete entry[device];}if(Object.keys(entry).length)next[url]=entry;else delete next[url];}
+ for(const url of urls){const entry={...next[url]};for(const device of ["pc","mobile"] as const){const fresh=incoming[url]?.[device],old=entry[device];if(fresh&&(Math.max(fresh.okAt,fresh.failedAt)>=Math.max(old?.okAt||0,old?.failedAt||0)||Math.max(old?.okAt||0,old?.failedAt||0)<=asOf))entry[device]=fresh;else if(!fresh&&Math.max(old?.okAt||0,old?.failedAt||0)<=asOf)delete entry[device];}if(Object.keys(entry).length)next[url]=entry;else delete next[url];}
  return next;
 }
 export function sharedStatus(entry:SharedHealthEntry|undefined,now=Date.now()):'available'|'unstable'|'unknown'{

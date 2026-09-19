@@ -72,3 +72,8 @@
 - Keep local-playable viewing history ahead of possible-playback entries, including in availability-priority mode.
 - Preserve possible-playback labels on an untested device after the other device succeeds; keep explicit failures and verification facts separate.
 - Let the desktop workspace and player expand across wide screens instead of leaving capped side margins.
+
+## Shared success protection
+
+- Require ten distinct other browser failures to revoke shared success after its 24-hour protection period. Local failure remains immediate; PC/mobile votes stay separate.
+- Refresh previously aggregated instability under the new threshold without discarding newer reports.
