@@ -44,6 +44,10 @@ export function categoryPriority(name:string,category:string){
   const rank=[/北京/,/上海|东方/,/湖南/,/浙江/].findIndex(pattern=>pattern.test(n));return rank<0?4:rank;
  }
  if(category==="地方")return n.includes("北京")?0:1;
+ if(category==="日本"){
+  const station=n.normalize("NFKC").replace(/^[「【\[]JP[」】\]]/i,"");
+  return /^[A-Z\u3041-\u3096\u30a1-\u30fa]/i.test(station)?0:1;
+ }
  if(category==="海外"){
   const rank=[/BLOOMBERG|彭博/i,/CNBC/i,/CNN/i,/BBC/i].findIndex(pattern=>pattern.test(n));return rank>=0?rank:4;
  }

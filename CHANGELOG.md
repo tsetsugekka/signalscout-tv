@@ -64,3 +64,9 @@
 - Refresh the original five-panel state diagram wording to match the implemented behavior.
 
 - Make the full source card a single radio selection target, retaining disabled and keyboard behavior.
+
+## Japan browsing and source hosts
+
+- Prioritize Latin/kana station names within Japan, without pinning Japanese channels in Overseas.
+- Show source hostname/IP alongside device evaluations, keeping full URLs and address actions hidden.
+- Keep local-playable viewing history ahead of possible-playback entries, including in availability-priority mode.

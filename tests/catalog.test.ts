@@ -171,3 +171,10 @@ test('deep links use stable source numbers and wait for expanded catalogs before
  for(const source of ['0','-1','1.5','1e3','NaN','99999999999999999','https://evil.example'])assert.equal(readPlaybackLink('?channel=CCTV5&source='+encodeURIComponent(source))?.invalidSource,true);
  assert.equal(readPlaybackLink('?source=15'),undefined);
 });
+
+ test('Japan prioritizes Latin and kana station names only inside its shortcut',async()=>{
+ const {categoryPriority}=await import('../lib/channel-category');
+ for(const name of ['NHK','TBS NEWS','テレビ東京','ひかりTV','[HD]WOWOW','[JP]NHK','ＮＨＫ','ﾃﾚﾋﾞ'])assert.equal(categoryPriority(name,'日本'),0,name);
+ for(const name of ['日本映画','日本购物频道','[JP]日本映画','[HD]日本映画'])assert.equal(categoryPriority(name,'日本'),1,name);
+ for(const name of ['NHK','テレビ東京','日本映画'])assert.equal(categoryPriority(name,'海外'),4,name);
+ });

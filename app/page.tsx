@@ -31,7 +31,7 @@ export default function Home(){
  const categories=CATEGORIES;const catalogNotice=tv.notice.includes("目录")?tv.notice:"";
  const channelState=(c:Channel)=>evaluateChannel(c,tv.evaluation,c.id===selected.id?tv.playback:undefined);
  const channelStatus=(c:Channel)=>channelState(c).label;
- const priorities=tv.prefs.sourceFilter==="priority"?new Map(tv.catalog.channels.map(c=>[c.id,channelPlaybackPriority(c,tv.evaluation)])):undefined;
+ const priorities=tab!=="available"&&tv.prefs.sourceFilter==="priority"?new Map(tv.catalog.channels.map(c=>[c.id,channelPlaybackPriority(c,tv.evaluation)])):undefined;
  const filtered=tv.catalog.channels.filter(c=>{
   const matches=(c.name+c.title).toLowerCase().includes(query.trim().toLowerCase());
   if(!matches||tv.prefs.sourceFilter==="hide-failed"&&tv.hasFailed(c))return false;if(tab==="favorites")return tv.prefs.favorites.includes(c.id);if(tab==="recent")return tv.prefs.recent.includes(c.id);

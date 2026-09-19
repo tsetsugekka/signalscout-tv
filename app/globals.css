@@ -146,3 +146,5 @@ a{color:inherit;text-decoration:none}button,input{font:inherit}button{color:inhe
 .source-choice .source-latency{color:#919d93;white-space:nowrap;font-variant-numeric:tabular-nums}
 
 .source-row{position:relative}.source-choice label::after{content:"";position:absolute;inset:0;z-index:1;border-radius:8px;cursor:pointer}.source-row:has([role=radio]:disabled) label::after{cursor:not-allowed}.source-row:focus-within{outline:1px solid #778d50;outline-offset:2px}
+
+.source-device-status .source-endpoint{color:#919d93;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
