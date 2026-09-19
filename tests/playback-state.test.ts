@@ -127,7 +127,7 @@ test('channel signals distinguish unresolved candidates from all failed and from
  const bad=source('https://bad.example/a'),unknown=source('https://new.example/b'),good=source('https://good.example/c'),unsupported=source('https://old.example/file.mp4');
  const ctx=context({local:{[bad.id]:{...success(),failedAt:now},[good.id]:success()}});
  assert.equal(evaluateChannel(channel([bad,unknown,unsupported]),ctx).signal,'pending');
- assert.equal(evaluateChannel(channel([bad,unsupported]),ctx).signal,'unavailable');
+ assert.deepEqual(evaluateChannel(channel([bad,unsupported]),ctx),{signal:'unavailable',label:'不稳定'});
  assert.equal(evaluateChannel(channel([unsupported]),ctx).signal,'restricted');
  assert.equal(evaluateChannel(channel([bad,good]),ctx).signal,'recent');
 });
@@ -161,7 +161,7 @@ test('rendered cards retain device conflicts, original numbers and host hint lab
  const good=source('https://example.com/live',15),hint=source('https://example.com:9000/other',28);const ctx=withHosts([good,hint],context({device:'mobile',local:{[good.id]:{...success(),failedAt:now}},devices:{[good.id]:{pc:{okAt:now,failedAt:0},mobile:{okAt:now,failedAt:0}}}}));
  const html=renderToStaticMarkup(createElement(SourceList,{channel:channel([good,hint]),evaluation:ctx,checks:{[good.id]:{status:'failed',connectMs:123}},hideFailed:false,onSelect:()=>{},onRecheck:()=>{}}));
  assert.match(html,/线路 15/);assert.match(html,/线路 28/);assert.match(html,/PC：他人近期可播/);assert.match(html,/手机：本机不稳定/);assert.match(html,/device-recent[^>]*> · 他人近期可播/);assert.match(html,/可能可播/);assert.match(html,/aria-label="连接耗时 123 毫秒"/);assert.match(html,/123 ms/);assert.match(html,/source-endpoint[^>]*title="example.com"[^>]*>example.com/);assert.doesNotMatch(html.replace(/<[^>]*>/g,""),/https:\/\/example.com|example.com:9000|\/other/);assert.doesNotMatch(html,/复制地址|打开原始地址|<code|href=/);
- for(const signal of ['recent','available','possible','pending','checking','unavailable','restricted','offline'] as const){const icon=renderToStaticMarkup(createElement(ChannelSignal,{state:{signal,label:'测试'}}));assert.match(icon,new RegExp('signal-'+signal));assert.match(icon,/aria-label="测试"/);if(signal==='pending')assert.match(icon,/<circle/);if(['unavailable','restricted','offline'].includes(signal))assert.match(icon,/M3 3l18 18/);}
+ for(const signal of ['recent','available','possible','pending','checking','unavailable','restricted','offline'] as const){const icon=renderToStaticMarkup(createElement(ChannelSignal,{state:{signal,label:'测试'}}));assert.match(icon,new RegExp('signal-'+signal));assert.match(icon,/aria-label="测试"/);if(signal==='pending')assert.match(icon,/<circle/);if(['restricted','offline'].includes(signal))assert.match(icon,/M3 3l18 18/);if(signal==='unavailable')assert.doesNotMatch(icon,/M3 3l18 18/);}
 });
 
 test('an unknown device borrows the other device success tier for signals and ranking without overwriting facts',()=>{

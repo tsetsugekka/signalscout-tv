@@ -104,3 +104,7 @@
 - Merge country-tagged equivalents with the same base station name, keeping per-source region badges and unmatched display labels.
 - Preserve Japan filtering, source URL deduplication, fixed source numbers and distinct time-shift channels.
 - Retry inconclusive native live manifests for up to three target-duration reloads; fixed playlists are never promoted solely because video frames move.
+
+## Unstable signal indicator
+
+- Distinguish recent/older success by four/three bars in the same green, possible by two amber bars, and unstable by one orange bar; keep offline/restricted slash indicators distinct. Stationary native playlists follow the existing local-failure/shared-vote rules.

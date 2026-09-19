@@ -106,5 +106,5 @@ export function evaluateChannel(channel:Channel,ctx:EvaluationContext,foreground
  if(states.some(s=>s.current.status==='unknown')){
   return {signal:'pending',label:foreground?.status==='blocked'?'待点击验证':'待本机验证'};
  }
- return states.every(s=>s.current.status==='unsupported')?{signal:'restricted',label:'网页直连受限'}:{signal:'unavailable',label:'暂不可播'};
+ return states.every(s=>s.current.status==='unsupported')?{signal:'restricted',label:'网页直连受限'}:{signal:'unavailable',label:'不稳定'};
 }
