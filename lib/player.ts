@@ -100,6 +100,8 @@ export function connectMedia(video:HTMLVideoElement,url:string,callbacks:Callbac
 export function fingerprint(channel:Channel){return channel.sources.map(s=>s.id).sort().join("\n");}
 export function orderedSources(channel:Channel,state:LocalState,attempted=new Set<string>(),shared:SharedHealth={}){
  const now=Date.now(),preferred=state.lastPlayedSources[channel.id];return browserSources(channel).filter(s=>!attempted.has(s.id)&&(s.id===preferred||!(state.health[s.id]?.until>now))).sort((a,b)=>{
+  const unstable=(s:Source)=>sourceRank(undefined,shared[s.id],now)===2||((state.health[s.id]?.failedAt||0)>(state.health[s.id]?.okAt||0)&&(state.health[s.id]?.until||0)>now);
+  const failureOrder=Number(unstable(a))-Number(unstable(b));if(failureOrder)return failureOrder;
   if(a.id===preferred)return -1;if(b.id===preferred)return 1;
   const score=(s:Source)=>{const t=state.health[s.id]?.verifiedLive?state.health[s.id].okAt||0:0;return now-t<24*3600_000?t:0;};return score(b)-score(a)||sourceRank(undefined,shared[a.id],now)-sourceRank(undefined,shared[b.id],now);
  });

@@ -13,7 +13,7 @@ export function SourceList({device,deviceHealth,channel,checks,shared,hideFailed
  const [copied,setCopied]=useState("");const [copyError,setCopyError]=useState("");const [page,setPage]=useState(0);
  const copy=async(id:string,url:string)=>{try{await navigator.clipboard.writeText(url);setCopied(id);setCopyError("");}catch{setCopyError("复制失败，请选中地址手动复制。");}};
  const numbers=new Map(channel.sources.map((s,i)=>[s.id,s.number||i+1]));
- const visible=rankedSources(channel.sources,checks,shared).map(source=>({source,index:numbers.get(source.id)!-1})).filter(({source})=>sharedSourceVisible(checks[source.id],shared[source.id],hideFailed));
+ const visible=rankedSources(channel.sources,checks,shared,Date.now(),deviceHealth,device).map(source=>({source,index:numbers.get(source.id)!-1})).filter(({source})=>sharedSourceVisible(checks[source.id],shared[source.id],hideFailed));
  const hidden=channel.sources.length-visible.length;const pages=Math.max(1,Math.ceil(visible.length/PAGE_SIZE));const currentPage=Math.min(page,pages-1);
  const activeIndex=visible.findIndex(({source})=>source.id===activeSource);const activePage=activeIndex<0?-1:Math.floor(activeIndex/PAGE_SIZE);
  const complete=channel.sources.filter(s=>checks[s.id]&&!["waiting","pinging","checking"].includes(checks[s.id].status)).length;

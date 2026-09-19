@@ -48,3 +48,17 @@ test('device-health snapshots cannot overwrite a newer report and remove expired
  const next=mergeDeviceHealth(current,{s:{pc:{okAt:0,failedAt:now-200}}},['s'],now-50);
  assert.deepEqual(next,{s:{pc:{okAt:now,failedAt:0}}});assert.ok(current.s.mobile);
 });
+
+test('display promotes either playable device, while unsupported stays behind unstable',()=>{
+ const devices={failed:{pc:{okAt:now,failedAt:0},mobile:{okAt:0,failedAt:now}}};
+ const shared={failed:{okAt:0,failedAt:now},good:{okAt:0,failedAt:now}};
+ const checks={failed:{status:'failed' as const},other:{status:'unsupported' as const}};
+ assert.deepEqual(rankedSources(sources,checks,shared,now,devices,'mobile').map(s=>s.id),['failed','unknown','good','other']);
+ assert.equal(sharedSourceVisible(checks.failed,shared.failed,true,now),false);
+});
+test('newer phone success does not override known PC instability for automatic attempts',async()=>{
+ const {healthForDevice}=await import('../lib/shared-health');
+ const records={source:{pc:{okAt:0,failedAt:now-1},mobile:{okAt:now,failedAt:0}}};
+ assert.equal(sharedStatus(healthForDevice(records,'pc',now).source,now),'unstable');
+ assert.equal(sharedStatus(healthForDevice(records,'mobile',now).source,now),'available');
+});

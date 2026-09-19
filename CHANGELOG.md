@@ -36,3 +36,5 @@
 - Add the device health database migration.
 
 - Reduce GitHub catalog cache freshness from six hours to one hour.
+
+- Separate cross-device display priority from current-device automatic attempt order; place web-direct unsupported sources last.

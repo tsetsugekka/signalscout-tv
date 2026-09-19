@@ -5,7 +5,7 @@ import { useEffect,useRef,useState } from "react";
 import { browserSources,normalizeName,mergeChannels,type Catalog,type Channel } from "./catalog";
 import { defaults,readLocal,writeLocal,recordSuccess,recordFailure,type LocalState } from "./local-state";
 import { PlayerEngine,connectMedia,fingerprint,type PlayerState } from "./player";
-import {sharedStatus,healthForDevice,mergeDeviceHealth,type DeviceHealth,type SharedHealth} from "./shared-health";
+import {rankedSources,sharedStatus,healthForDevice,mergeDeviceHealth,type DeviceHealth,type SharedHealth} from "./shared-health";
 import {initialSourceChecks,nextSourceToCheck,type SourceCheck} from "./source-checks";
 export function useTV(){
  const [device,setDevice]=useState<DeviceClass>("pc");const [deviceHealth,setDeviceHealth]=useState<DeviceHealth>({});const deviceHealthRef=useRef<DeviceHealth>({});
@@ -92,7 +92,7 @@ export function useTV(){
   const scan=()=>{
    if(!alive)return;const e=engine.current;if(!e)return;
    if(!navigator.onLine||document.visibilityState!=="visible"||["connecting","recovering","offline"].includes(e.current.status)){schedule();return;}
-   const source=nextSourceToCheck(channel,checksRef.current,e.source?.id);if(!source)return;
+   const source=nextSourceToCheck({...channel,sources:rankedSources(channel.sources,checksRef.current,sharedRef.current)},checksRef.current,e.source?.id);if(!source)return;
    setProbingId(channel.id);updateCheck(source.id,{status:"pinging"});const started=performance.now();let connectMs:number|undefined;
    const element=document.createElement("video");element.muted=true;element.playsInline=true;element.setAttribute("aria-hidden","true");element.style.cssText="position:fixed;width:2px;height:2px;opacity:0;pointer-events:none;bottom:0;left:0;";document.body.appendChild(element);
    let stopped=false,connection:ReturnType<typeof connectMedia>|undefined;
