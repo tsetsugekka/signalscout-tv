@@ -52,9 +52,9 @@ export function evaluateSource(source:Source,ctx:EvaluationContext):SourceState{
  const devices={pc:directEvidence(source.id,'pc',ctx),mobile:directEvidence(source.id,'mobile',ctx)};
  if(!isBrowserSource(source)||ctx.checks[source.id]?.status==='unsupported')return {devices,current:{status:'unsupported'},display:{status:'unsupported'}};
  const original={...devices};
- for(const kind of ['pc','mobile'] as const){const other=kind==='pc'?'mobile':'pc';if(devices[kind].status==='unknown'&&!isSuccess(original[other]))devices[kind]=hostHint(source,kind,ctx.hosts);}
+ for(const kind of ['pc','mobile'] as const){const other=kind==='pc'?'mobile':'pc';if(devices[kind].status==='unknown')devices[kind]=isSuccess(original[other])?{status:'possible',hintDevice:other}:hostHint(source,kind,ctx.hosts);}
  const own=devices[ctx.device],other=ctx.device==='pc'?'mobile':'pc';
- const reference=own.status==='unknown'&&isSuccess(devices[other])?other:undefined;
+ const reference=original[ctx.device].status==='unknown'&&isSuccess(original[other])?other:undefined;
  const current=reference?devices[reference]:own;
  const successes=Object.values(devices).filter(isSuccess).sort(compareEvidence);
  return {devices,current,display:successes[0]||current,reference};

@@ -70,3 +70,5 @@
 - Prioritize Latin/kana station names within Japan, without pinning Japanese channels in Overseas.
 - Show source hostname/IP alongside device evaluations, keeping full URLs and address actions hidden.
 - Keep local-playable viewing history ahead of possible-playback entries, including in availability-priority mode.
+- Preserve possible-playback labels on an untested device after the other device succeeds; keep explicit failures and verification facts separate.
+- Let the desktop workspace and player expand across wide screens instead of leaving capped side margins.

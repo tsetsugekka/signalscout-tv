@@ -78,7 +78,7 @@ test('host hints never overwrite actual failure, unsupported formats, or another
  assert.equal(evaluateSource(bad,ctx).current.status,'unstable');
  assert.equal(evaluateSource(unsupported,ctx).display.status,'unsupported');
  assert.equal(evaluateSource(pcOnly,ctx).current.status,'recent');
- assert.equal(evaluateSource(pcOnly,ctx).devices.mobile.status,'unknown');
+ assert.equal(evaluateSource(pcOnly,ctx).devices.mobile.status,'possible');
  assert.equal(evaluateSource(pcOnly,ctx).reference,'pc');
  assert.deepEqual(evaluateChannel(channel([pcOnly]),ctx),{signal:'recent',label:'PC近期可播 · 手机待验证'});
 });
@@ -168,7 +168,18 @@ test('an unknown device borrows the other device success tier for signals and ra
  const s=source('https://example.com/live');
  for(const device of ['pc','mobile'] as const){const other=device==='pc'?'mobile':'pc';for(const age of [1,RECENT_SUCCESS]){
   const ctx=context({device,devices:{[s.id]:{[other]:{okAt:now-age,failedAt:0}}}});const expected=age===1?'recent':'available';
-  const result=evaluateSource(s,ctx);assert.equal(result.current.status,expected);assert.equal(result.display.status,expected);assert.equal(result.devices[device].status,'unknown');assert.equal(result.reference,other);assert.equal(evaluateChannel(channel([s]),ctx).signal,expected);
+  const result=evaluateSource(s,ctx);assert.equal(result.current.status,expected);assert.equal(result.display.status,expected);assert.equal(result.devices[device].status,'possible');assert.equal(result.reference,other);assert.equal(evaluateChannel(channel([s]),ctx).signal,expected);
   ctx.devices[s.id][device]={okAt:0,failedAt:now};assert.equal(evaluateSource(s,ctx).current.status,'unstable');assert.equal(evaluateChannel(channel([s]),ctx).signal,'unavailable');
  }}
+});
+
+test('a mobile success retains the unknown PC possible hint without fabricating PC verification',()=>{
+ const s=source('https://example.com/live');
+ const before=withHosts([s],context({device:'mobile'}));before.hosts.set('example.com',{pc:now-100});
+ assert.equal(evaluateSource(s,before).devices.pc.status,'possible');
+ before.checks[s.id]={status:'available',okAt:now};
+ const after=evaluateSource(s,before);
+ assert.equal(after.devices.pc.status,'possible');assert.equal(after.devices.pc.okAt,undefined);assert.equal(after.devices.mobile.status,'recent');
+ before.devices[s.id]={pc:{okAt:0,failedAt:now}};
+ assert.equal(evaluateSource(s,before).devices.pc.status,'unstable');
 });
