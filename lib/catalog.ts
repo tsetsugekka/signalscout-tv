@@ -1,5 +1,5 @@
-import {classifyChannel,compareChannelNames} from "./channel-category";
-export type Source = { id: string; url: string; number?:number; qualities?:string[] };
+import {classifyChannel,compareChannelNames,countryCategory,isBdQualityName} from "./channel-category";
+export type Source = { id: string; url: string; number?:number; qualities?:string[]; countries?:string[] };
 export type Channel = { id: string; name: string; title: string; group: string; sources: Source[] };
 export type Catalog = { version: string; syncedAt: number; channels: Channel[]; stale?: boolean; inputs?: string[]; failedInputs?: string[] };
 export const UPSTREAM = "https://raw.githubusercontent.com/CCSH/IPTV/refs/heads/main/live_lite.m3u";
@@ -13,14 +13,16 @@ export function parseTVAPPFeeds(readme:string){
 export function parseCatalog(text:string){return text.replace(/^\uFEFF/,"").trimStart().startsWith("#EXTM3U")?parsePlaylist(text.replace(/^\uFEFF/,"")):parseTxt(text);}
 const titles: Record<string,string> = {CCTV1:"综合",CCTV2:"财经",CCTV3:"综艺",CCTV4:"中文国际",CCTV5:"体育","CCTV5+":"体育赛事",CCTV6:"电影",CCTV7:"国防军事",CCTV8:"电视剧",CCTV9:"纪录",CCTV10:"科教",CCTV11:"戏曲",CCTV12:"社会与法",CCTV13:"新闻",CCTV14:"少儿",CCTV15:"音乐",CCTV16:"奥林匹克",CCTV17:"农业农村",CCTV4K:"超高清"};
 export function channelQuality(name:string){
- const qualities:string[]=[];const add=(tag:string)=>{const label=tag.toUpperCase().replace(/^(\d+)([IP])$/,(_,n,mode)=>n+mode.toLowerCase());if(!qualities.includes(label))qualities.push(label);};
+ const qualities:string[]=[],countries:string[]=[];const add=(tag:string)=>{const label=tag.toUpperCase().replace(/^(\d+)([IP])$/,(_,n,mode)=>n+mode.toLowerCase());if(!qualities.includes(label))qualities.push(label);};
  let value=name.trim().replace(/[\[【（(](HD|FHD|UHD|SD|VGA|[248]K|\d{3,4}[ip]|超高清|高清|超清|标清|蓝光)[\]】）)]/gi,(_,tag)=>{add(tag);return '';}).trim();
  // BD can mean Bangladesh; only remove it for an identifiable station name.
- if(/^\[BD\]/i.test(value)&&classifyChannel(value.slice(4))!=="其他"){add('BD');value=value.slice(4).trim();}
+ if(/^\[BD\]/i.test(value)&&isBdQualityName(value.slice(4))){add('BD');value=value.slice(4).trim();}
  if(!/^CCTV[48]K(?:超高清)?$/i.test(value))value=value.replace(/(HD|FHD|UHD|SD|VGA|[248]K|\d{3,4}[ip]|超高清|高清|超清)$/i,(_,tag)=>{add(tag);return '';}).trim();
- return {name:value||name.trim(),qualities};
+ const country=value.match(/^[「【\[]([A-Z]{2})[」】\]]\s*/i);
+ if(country&&countryCategory(country[1])){countries.push(country[1].toUpperCase());value=value.slice(country[0].length).trim();}
+ return {name:value||name.trim(),qualities,countries};
 }
-function withQuality(source:Source,qualities:string[]):Source{const merged=[...new Set([...(source.qualities||[]),...qualities])];return merged.length?{...source,qualities:merged}:source;}
+function withQuality(source:Source,qualities:string[],countries:string[]=[]):Source{const merged=[...new Set([...(source.qualities||[]),...qualities])],regions=[...new Set([...(source.countries||[]),...countries])];return {...source,...(merged.length?{qualities:merged}:{}),...(regions.length?{countries:regions}:{})};}
 export function normalizeName(name:string){
  let value=channelQuality(name).name;
  value=value.replace(/^CCTV[-\s]*(\d+)\s*(PLUS|＋|\+)/i,"CCTV$1+").replace(/^CCTV[-\s]*(\d+)/i,"CCTV$1").trim();
@@ -35,19 +37,19 @@ export function channelDisplayName(channel:Channel){const title=titles[channel.n
 
 export function parsePlaylist(text:string): Channel[]{
  if(!text.trimStart().startsWith("#EXTM3U"))throw new Error("Invalid M3U header");
- const channels=new Map<string,Channel>(); let name="", group="",qualities:string[]=[];
+ const channels=new Map<string,Channel>(); let name="", group="",id="",qualities:string[]=[],countries:string[]=[];
  for(const raw of text.split(/\r?\n/)){
   const line=raw.trim();
-  if(line.startsWith("#EXTINF:")){const rawName=line.slice(line.lastIndexOf(",")+1);name=normalizeName(rawName);qualities=channelQuality(rawName).qualities;group=line.match(/group-title="([^"]*)"/)?.[1]||"其他";continue;}
+  if(line.startsWith("#EXTINF:")){const rawName=line.slice(line.lastIndexOf(",")+1);name=normalizeName(rawName);id=channelIdentity(rawName);({qualities,countries}=channelQuality(rawName));group=line.match(/group-title="([^"]*)"/)?.[1]||"其他";if(group!=="更新时间")group=classifyChannel(rawName,group);continue;}
   if(!line||line.startsWith("#")||!name)continue;
   if(group==="更新时间"){name="";continue;}
   try{const url=new URL(line);if(!["https:","http:"].includes(url.protocol)||url.username||url.password){name="";continue;}}catch{name="";continue;}
-  const id=channelIdentity(name);const channel=channels.get(id)||{id,name,title:titles[name]||name,group:classifyChannel(name,group),sources:[]};
-  preferDisplayName(channel,name);
-  const existing=channel.sources.find(s=>s.url===line);if(existing)Object.assign(existing,withQuality(existing,qualities));else channel.sources.push(withQuality({id:line,url:line},qualities));channels.set(id,channel);name="";
+  const key=countries.join(",")+":"+id;const display=countries.length?`[${countries[0]}] ${name}`:name;const channel=channels.get(key)||{id,name:display,title:titles[display]||display,group:countryCategory(countries[0]||"")||classifyChannel(name,group),sources:[]};
+  if(!countries.length)preferDisplayName(channel,name);
+  const existing=channel.sources.find(s=>s.url===line);if(existing)Object.assign(existing,withQuality(existing,qualities,countries));else channel.sources.push(withQuality({id:line,url:line},qualities,countries));channels.set(key,channel);name="";
  }
  const result=[...channels.values()].sort((a,b)=>compareChannelNames(a.name,b.name));
- if(!result.length)throw new Error("Empty playlist");return result;
+ if(!result.length)throw new Error("Empty playlist");return mergeChannels([result]);
 }
 export function parseTxt(text:string):Channel[]{
  if(/^\s*</.test(text))throw new Error("Invalid TXT catalog");
@@ -65,11 +67,17 @@ export function parseTxt(text:string):Channel[]{
 export function channelMerger(){
  const map=new Map<string,Channel>();const urls=new Map<string,Map<string,Source>>();
  const add=(list:Channel[])=>{for(const original of list){
-  const name=normalizeName(original.name);const channel={...original,id:channelIdentity(name),name,title:titles[name]||name,group:classifyChannel(name,original.group)};
+  const cleanName=normalizeName(original.name),metadata=channelQuality(original.name);
+  const name=metadata.countries.length?`[${metadata.countries[0]}] ${cleanName}`:cleanName;
+  const channel={...original,id:channelIdentity(original.id||original.name),name,title:titles[name]||name,group:classifyChannel(original.name,original.group)};
   let entry=map.get(channel.id);if(!entry){entry={...channel,sources:[]};map.set(channel.id,entry);urls.set(channel.id,new Map());}
-  preferDisplayName(entry,name);
-  const seen=urls.get(channel.id)!,qualities=channelQuality(original.name).qualities;
-  for(const source of channel.sources){const tagged=withQuality(source,qualities),existing=seen.get(source.url);if(existing)Object.assign(existing,withQuality(existing,tagged.qualities||[]));else{const copy={...tagged};entry.sources.push(copy);seen.set(source.url,copy);}}
+  if(channelQuality(entry.name).countries.join()!==metadata.countries.join()){
+   entry.name=normalizeName(entry.name);entry.title=titles[entry.name]||entry.name;
+  }
+  if(!channelQuality(entry.name).countries.length)preferDisplayName(entry,cleanName);
+  if(entry.group==="其他"&&channel.group!=="其他")entry.group=channel.group;
+  const seen=urls.get(channel.id)!,{qualities,countries}=channelQuality(original.name);
+  for(const source of channel.sources){const tagged=withQuality(source,qualities,countries),existing=seen.get(source.url);if(existing)Object.assign(existing,withQuality(existing,tagged.qualities||[],tagged.countries||[]));else{const copy={...tagged};entry.sources.push(copy);seen.set(source.url,copy);}}
  }
  };return {add,values:()=>[...map.values()].sort((a,b)=>compareChannelNames(a.name,b.name))};
 }

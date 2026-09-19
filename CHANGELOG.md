@@ -97,3 +97,10 @@
 - Merge quality-only, ASCII case and whitespace channel variants; preserve distinct CCTV5/CCTV5+ and time-shift suffixes.
 - Retain catalog quality metadata as compact source-card badges, including metadata on duplicate URLs.
 - Normalize cached catalogs, shared-health lookup and saved viewing preferences consistently; preserve canonical source numbers and allocate free numbers for merge collisions.
+
+## Catalog labels and bounded native live verification
+
+- Move BD quality markers onto source cards for recognized foreign stations and Chinese station names; remove the unsupported generic-local exception.
+- Merge country-tagged equivalents with the same base station name, keeping per-source region badges and unmatched display labels.
+- Preserve Japan filtering, source URL deduplication, fixed source numbers and distinct time-shift channels.
+- Retry inconclusive native live manifests for up to three target-duration reloads; fixed playlists are never promoted solely because video frames move.

@@ -106,7 +106,7 @@ test('one local failure cancels local availability even after cooldown; success 
 test('BD quality tags cannot override recognizable domestic station identity',async()=>{
  const {classifyChannel}=await import('../lib/channel-category');
  for(const name of ['[BD]安徽卫视','[BD]北京卫视','[BD]东方卫视'])assert.equal(classifyChannel(name,'海外'),'卫视');
- for(const name of ['[BD]揭阳综合','[BD]潮州综合','[BD]荆门新闻综合','[BD]江津新闻综合','[BD]经济科教'])assert.equal(classifyChannel(name,'海外'),'地方');
+ for(const name of ['[BD]揭阳综合','[BD]潮州综合','[BD]荆门新闻综合','[BD]江津新闻综合'])assert.equal(classifyChannel(name,'海外'),'地方');
  assert.equal(classifyChannel('[BD]Bangla TV'),'海外');
 });
 test('Japanese station classification matches its pinning while avoiding TBS Seoul and US call signs',async()=>{
@@ -212,8 +212,8 @@ test('quality, case and whitespace aliases merge while all URLs and quality labe
  assert.deepEqual(list.find(c=>c.id==='北京卫视')?.sources.map(s=>s.qualities),[['HD'],['4K']]);
  assert.equal(list.find(c=>c.id==='9XJALWA')?.sources.length,2);
  for(const name of ['[VGA]东莞综合','东莞综合 (1080p)','东莞综合720p'])assert.equal(channelIdentity(name),'东莞综合');
- assert.notEqual(channelIdentity('CCTV5'),channelIdentity('CCTV5+'));assert.notEqual(channelIdentity('Bloomberg TV+1'),channelIdentity('Bloomberg TV+2'));assert.equal(channelIdentity('CCTV4K'),'CCTV4K');assert.equal(channelIdentity('CCTV4K超高清'),'CCTV4K');assert.equal(channelIdentity('北京卫视超高清'),'北京卫视');assert.notEqual(channelIdentity('[BD]Bangla TV'),channelIdentity('Bangla TV'));assert.notEqual(channelIdentity('CNBC Asia'),channelIdentity('CNBC Europe'));
- assert.deepEqual(channelQuality('[hd]台 (1080P)'),{name:'台',qualities:['HD','1080p']});
+ assert.notEqual(channelIdentity('CCTV5'),channelIdentity('CCTV5+'));assert.notEqual(channelIdentity('Bloomberg TV+1'),channelIdentity('Bloomberg TV+2'));assert.equal(channelIdentity('CCTV4K'),'CCTV4K');assert.equal(channelIdentity('CCTV4K超高清'),'CCTV4K');assert.equal(channelIdentity('北京卫视超高清'),'北京卫视');assert.equal(channelIdentity('[BD]Bangla TV'),channelIdentity('Bangla TV'));assert.notEqual(channelIdentity('CNBC Asia'),channelIdentity('CNBC Europe'));
+ assert.deepEqual(channelQuality('[hd]台 (1080P)'),{name:'台',qualities:['HD','1080p'],countries:[]});
  const cached=mergeChannels([[{id:'[HD]cnbc',name:'[HD]cnbc',title:'',group:'其他',sources:[{id:'https://example.com/a',url:'https://example.com/a',number:8}]}],list]);
  assert.deepEqual(cached.find(c=>c.id==='CNBC')?.sources[0].qualities,['HD','BD','1080p']);
  assert.deepEqual(mergeChannels([cached]),cached);
@@ -234,4 +234,33 @@ test('merged aliases preserve local viewing history and resolve old encoded chan
  const saved=defaults();saved.favorites=['[HD]cnbc','CNBC'];saved.recent=['CNBC (720p)','[HD]cnbc'];saved.lastChannel='CNBC (720p)';saved.lastPlayedAt={'[HD]cnbc':10,'CNBC (720p)':20};saved.lastPlayedSources={'[HD]cnbc':'old','CNBC (720p)':'new'};const next=normalizeLocalChannels(saved);
  assert.deepEqual(next.favorites,['CNBC']);assert.deepEqual(next.recent,['CNBC']);assert.deepEqual(next.lastPlayedAt,{CNBC:20});assert.deepEqual(next.lastPlayedSources,{CNBC:'new'});assert.equal(next.lastChannel,'CNBC');assert.equal(next.health,saved.health);
  const c=parseTxt('CNBC,https://example.com/live');assert.equal(resolvePlaybackLink(c,{channel:channelLinkKey('[BD]cnbc')},true).channel?.id,'CNBC');
+});
+
+test('Bloomberg and local BD markers plus country labels move from channel names to source metadata',async()=>{
+ const {parseTxt,mergeChannels,channelIdentity}=await import('../lib/catalog');
+ const {channelInCategory}=await import('../lib/channel-category');const {isPrimaryChannel}=await import('../lib/channel-list');
+ const list=parseTxt('[BD]bloomberg tv,https://example.com/a\n「US」 Bloomberg TV+2,https://example.com/b\n「US」BloombergTV+,https://example.com/c\n[BD]经济科教,https://example.com/d\n「JP」News,https://example.com/e\n[JP]News,https://example.com/f\n「US」News,https://example.com/g');
+ const bloomberg=list.find(c=>c.id==='BLOOMBERGTV')!;assert.equal(bloomberg.name,'bloomberg tv');assert.equal(bloomberg.group,'海外');assert.deepEqual(bloomberg.sources[0].qualities,['BD']);
+ const plus2=list.find(c=>c.id===channelIdentity('「US」Bloomberg TV+2'))!;assert.equal(plus2.name,'[US] Bloomberg TV+2');assert.deepEqual(plus2.sources[0].countries,['US']);assert.equal(plus2.group,'海外');assert.ok(list.some(c=>c.name==='[US] BloombergTV+'));assert.notEqual(channelIdentity('「US」BloombergTV+'),plus2.id);
+ const local=list.find(c=>c.name==='经济科教')!;assert.equal(local.group,'其他');assert.deepEqual(local.sources[0].qualities,['BD']);assert.equal(local.sources[0].countries,undefined);
+ const japan=list.find(c=>c.id==='NEWS')!;assert.equal(japan.sources.length,3);assert.equal(japan.name,'News');assert.equal(channelInCategory(japan,'日本'),true);assert.equal(isPrimaryChannel(japan),true);assert.deepEqual(japan.sources.map(s=>s.countries),[['JP'],['JP'],['US']]);
+ assert.deepEqual(mergeChannels([list]),list);
+ const cached=mergeChannels([[{id:'[BD]经济科教',name:'[BD]经济科教',title:'',group:'海外',sources:[{id:'https://old.example/live',url:'https://old.example/live',number:7}]}]]);assert.equal(cached[0].name,'经济科教');assert.equal(cached[0].group,'其他');assert.deepEqual(cached[0].sources[0].qualities,['BD']);
+});
+
+
+test('country-tagged equivalents merge across feeds while unmatched labels and distinct suffixes survive',async()=>{
+ const {parseTxt,mergeChannels,channelIdentity}=await import('../lib/catalog');
+ const tagged=parseTxt('「US」 Bloomberg TV,https://example.com/a\n[JP]News,https://example.com/jp\n[US]Solo,https://example.com/s\n[US]BloombergTV+2,https://example.com/plus');
+ assert.equal(tagged.find(c=>c.id==='SOLO')?.name,'[US] Solo');
+ const plain=parseTxt('BloombergTV,https://example.com/b\nNEWS,https://example.com/n');
+ for(const lists of [[tagged,plain],[plain,tagged]]){
+  const merged=mergeChannels(lists),b=merged.find(c=>c.id==='BLOOMBERGTV')!;
+  assert.equal(b.sources.length,2);assert.doesNotMatch(b.name,/US/);assert.equal(merged.find(c=>c.id==='SOLO')?.name,'[US] Solo');
+  assert.equal(merged.find(c=>c.id==='NEWS')?.sources.length,2);assert.deepEqual(mergeChannels([merged]),merged);
+  assert.ok(merged.some(c=>c.id==='BLOOMBERGTV+2'));
+ }
+ assert.equal(channelIdentity('「US」 Bloomberg TV'),'BLOOMBERGTV');
+ assert.equal(parseTxt('地方频道,#genre#\n[BD]经济科教,https://example.com/e')[0].group,'地方');
+ assert.equal(parseTxt('[BD]经济科教,https://example.com/e')[0].group,'其他');
 });

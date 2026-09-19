@@ -24,28 +24,31 @@ export function livePlaylistAdvanced(before:string,after:string){
  const old=segments(before).map(original),next=segments(after).map(original);
  return sequence(after)>sequence(before)||(!!next.length&&next[next.length-1]!==old[old.length-1]);
 }
-async function inspectNative(url:string,signal:AbortSignal,depth=0,reachable?:(ms:number)=>void):Promise<boolean|undefined>{
+async function inspectNative(url:string,signal:AbortSignal,depth=0,reachable?:(ms:number)=>void):Promise<boolean|"stale"|undefined>{
  const began=performance.now();const r=await fetch(url,{signal,cache:"no-store"});reachable?.(performance.now()-began);if(!r.ok)throw new Error("Playlist unavailable");
  if(/video\/(mp4|webm)|audio\//i.test(r.headers.get("Content-Type")||"")||/\.(mp4|m4v|mov|webm)(?:[?#]|$)/i.test(r.url))return false;
  const text=await r.text();const kind=playlistType(text);
  if(kind==="master"&&depth===0){const lines=text.split(/\r?\n/);const index=lines.findIndex(l=>l.startsWith("#EXT-X-STREAM-INF:"));const child=lines.slice(index+1).find(l=>l.trim()&&!l.startsWith("#"));return child?inspectNative(new URL(child.trim(),r.url||url).href,signal,1):false;}
  if(kind!=="live")return false;
  const seconds=Number(text.match(/#EXT-X-TARGETDURATION:([\d.]+)/)?.[1]||6);
- await new Promise<void>((resolve,reject)=>{const cancel=()=>{clearTimeout(timer);reject(new DOMException("Aborted","AbortError"));};const timer=setTimeout(()=>{signal.removeEventListener("abort",cancel);resolve();},Math.min(12000,Math.max(1000,seconds*1000+500)));if(signal.aborted)cancel();else signal.addEventListener("abort",cancel,{once:true});});
- const second=await fetch(r.url||url,{signal,cache:"no-store"});if(!second.ok)throw new Error("Playlist reload unavailable");const updated=await second.text();if(playlistType(updated)==="vod")return false;return livePlaylistAdvanced(text,updated)?true:undefined;
+ for(let attempt=0;attempt<3;attempt++){
+  await new Promise<void>((resolve,reject)=>{const cancel=()=>{clearTimeout(timer);reject(new DOMException("Aborted","AbortError"));};const timer=setTimeout(()=>{signal.removeEventListener("abort",cancel);resolve();},Math.max(1000,seconds*1000+500));if(signal.aborted)cancel();else signal.addEventListener("abort",cancel,{once:true});});
+  const second=await fetch(r.url||url,{signal,cache:"no-store"});if(!second.ok)throw new Error("Playlist reload unavailable");const updated=await second.text();if(playlistType(updated)==="vod")return false;if(playlistType(updated)!=="live")return undefined;if(livePlaylistAdvanced(text,updated))return true;
+ }
+ return "stale";
 }
 // Verification requires advancing video frames, never just a successful manifest request.
 export function connectMedia(video:HTMLVideoElement,url:string,callbacks:Callbacks,probe=false):Connection{
  const originalUrl=url;const native=!!video.canPlayType("application/vnd.apple.mpegurl");
  const relayed=url.startsWith("http:"),connectTimeout=relayed?45000:6000,verificationBudget=relayed?90000:30000;
  url=playbackUrl(url);
- let disposed=false,verified=false,unconfirmed=false,nativeInspectionDone=false,nativeRejected=false,permissionBlocked=false,userPaused=false,recovered=false,baseline=-1,frames=0,frameId:number|undefined,lastProgress=performance.now(),lastTime=-1,activeMs=0,lastTick=performance.now();
+ let disposed=false,verified=false,unconfirmed=false,nativeInspectionDone=false,nativeRejected=false,nativeFailureReason="此线路未确认是持续更新的直播列表",permissionBlocked=false,userPaused=false,recovered=false,baseline=-1,frames=0,frameId:number|undefined,lastProgress=performance.now(),lastTime=-1,activeMs=0,lastTick=performance.now();
  let hls:Hls|undefined;let inspected=false;const inspection=new AbortController();const inspectionTimeout=setTimeout(()=>inspection.abort(),verificationBudget-1000);
  const fail=(reason?:string)=>{if(!disposed&&!permissionBlocked&&!userPaused&&navigator.onLine&&document.visibilityState==="visible")callbacks.failure(reason);};
  const attemptPlay=()=>{permissionBlocked=false;userPaused=false;lastProgress=performance.now();void video.play().catch((e:DOMException)=>{if(disposed||e.name==="AbortError")return;if(e.name==="NotAllowedError"){permissionBlocked=true;callbacks.blocked();}else fail();});};
  const sample=()=>{
   if(disposed||video.paused||!navigator.onLine||document.visibilityState!=="visible")return;
-  if(nativeRejected){fail("此线路未确认是持续更新的直播列表");return;}
+  if(nativeRejected){fail(nativeFailureReason);return;}
   if(video.currentTime>lastTime+.04){lastProgress=performance.now();lastTime=video.currentTime;}
   if(video.videoWidth>0&&video.readyState>=2){
    if(baseline<0)baseline=video.currentTime;
@@ -61,7 +64,7 @@ export function connectMedia(video:HTMLVideoElement,url:string,callbacks:Callbac
  if("requestVideoFrameCallback" in video)frameId=video.requestVideoFrameCallback(onFrame);
  if(probe)video.muted=true;
  const inspectNativePlayback=async()=>{
-  let live:boolean|undefined;
+  let live:boolean|"stale"|undefined;
   try{live=await inspectNative(url,inspection.signal,0,callbacks.reachable);}
   catch{
    // Native <video> can play CORS-restricted HLS. Inspect through our existing
@@ -70,7 +73,7 @@ export function connectMedia(video:HTMLVideoElement,url:string,callbacks:Callbac
   }
   finally{clearTimeout(inspectionTimeout);nativeInspectionDone=true;}
   if(disposed)return;
-  if(live===false){nativeRejected=true;fail("此线路未确认是持续更新的直播列表");return;}
+  if(live===false||live==="stale"){nativeRejected=true;if(live==="stale")nativeFailureReason="播放列表连续未更新，可能是固定片段或失效直播";fail(nativeFailureReason);return;}
   if(live===true){inspected=true;callbacks.streamType?.("live");}
   sample();
  };

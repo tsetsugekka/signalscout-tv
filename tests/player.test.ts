@@ -71,11 +71,17 @@ test('desktop native probe waits for live inspection before announcing verified 
  try{v.advance(1);v.advance(4);assert.equal(unconfirmed,0);await waitFor(()=>verified===1);assert.equal(unconfirmed,0);}finally{c.stop();}
 });
 
-test('one unchanged native playlist sample is inconclusive, not a playback failure',async()=>{
- const old=globalThis.fetch;let requests=0,failed=0,verified=0,unconfirmed=0;
- Object.defineProperty(globalThis,'fetch',{configurable:true,value:async()=>{requests++;return new Response(manifest,{headers:{'Content-Type':'application/vnd.apple.mpegurl'}});}});
- const v=new Video(),c=connectMedia(v as unknown as HTMLVideoElement,channel.sources[0].url,{verified:()=>verified++,unconfirmed:()=>unconfirmed++,failure:()=>failed++,blocked:()=>{}});
- try{await waitFor(()=>requests===2);await tick();v.advance(1);v.advance(4);assert.equal(failed,0);assert.equal(verified,0);assert.equal(unconfirmed,1);}finally{c.stop();Object.defineProperty(globalThis,'fetch',{configurable:true,value:old});}
+test('native inspection tolerates an unchanged sample and verifies a later playlist update',async()=>{
+ const old=globalThis.fetch;let requests=0,failed=0,verified=0;
+ Object.defineProperty(globalThis,'fetch',{configurable:true,value:async()=>{requests++;return new Response(manifest+(requests>=3?'\n#EXT-X-MEDIA-SEQUENCE:2\n#EXTINF:6,\nnew.ts':''));}});
+ const v=new Video(),c=connectMedia(v as unknown as HTMLVideoElement,channel.sources[0].url,{verified:()=>verified++,failure:()=>failed++,blocked:()=>{}});
+ try{v.advance(1);v.advance(4);await waitFor(()=>verified===1);assert.equal(requests,3);assert.equal(failed,0);}finally{c.stop();Object.defineProperty(globalThis,'fetch',{configurable:true,value:old});}
+});
+test('a fixed native playlist never becomes available despite moving video frames',async()=>{
+ const old=globalThis.fetch;let requests=0,reason='',verified=0;
+ Object.defineProperty(globalThis,'fetch',{configurable:true,value:async()=>{requests++;return new Response(manifest);}});
+ const v=new Video(),c=connectMedia(v as unknown as HTMLVideoElement,channel.sources[0].url,{verified:()=>verified++,failure:r=>reason=r||'',blocked:()=>{}});
+ try{v.advance(1);v.advance(24);await waitFor(()=>!!reason);assert.equal(requests,4);assert.equal(verified,0);assert.match(reason,/连续未更新/);}finally{c.stop();Object.defineProperty(globalThis,'fetch',{configurable:true,value:old});}
 });
 test('native decode failures include a diagnostic code',()=>{
  const v=new Video();Object.defineProperty(v,'error',{value:{code:3}});let reason='';

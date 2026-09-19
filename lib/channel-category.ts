@@ -1,11 +1,13 @@
 import {startsWithMainlandPlace} from "./china-places";
+export function countryCategory(code:string){const country=code.toUpperCase();if(["HK","MO","TW"].includes(country))return "港澳台";if(["US","CA","GB","UK","JP","KR","FR","DE","RU","AU","NZ","SG","MY","TH","VN","PH","ID","IN","IT","ES","PT","BR","MX","AR","TR","AE","SA","QA","ZA","NL","BE","CH","AT","SE","NO","DK","FI","PL","UA","RO","GR","IL","IR","PK","BD"].includes(country))return "海外";}
+export function isBdQualityName(name:string){return /^[\u3400-\u9fff]/u.test(name.trim())||classifyChannel(name)!=="其他";}
 export const CATEGORIES=["央视","卫视","地方","港台","日本","海外","其他","全部"] as const;
 const compactName=(name:string)=>name.replace(/[\s·_-]/g,"");
 const classificationName=(name:string)=>compactName(name).replace(/^(?:[\[【（(](?:HD|FHD|UHD|SD|VGA|4K|8K|720P|1080[PI]|2160P|高清|超清|标清|蓝光)[\]】）)])+/i,"");
 export function isJapaneseChannel(name:string){const n=classificationName(name);return /日本|日语|日テレ|NHK|^[「【\[]JP[」】\]]|[\u3040-\u30ff]|^(?:TOKYOMX|TVTOKYO|WOWOW|BSTBS|BS11|BS12)(?:$|\d)|^TBS(?:$|\d|NEWS(?:DIG)?$|ニュース)/i.test(n);}
-export function channelInCategory(channel:{name:string;group:string},category:string){
+export function channelInCategory(channel:{name:string;group:string;sources?:{countries?:string[]}[]},category:string){
  if(category==="全部")return true;
- if(category==="日本")return channel.group==="海外"&&isJapaneseChannel(channel.name);
+ if(category==="日本")return channel.group==="海外"&&(isJapaneseChannel(channel.name)||!!channel.sources?.some(s=>s.countries?.includes("JP")));
  return channel.group===(category==="港台"?"港澳台":category);
 }
 export function classifyChannel(name:string,originalGroup=""):string{
@@ -14,15 +16,14 @@ export function classifyChannel(name:string,originalGroup=""):string{
  if(n!==compactName(name)){const recognized=classifyChannel(n);if(recognized!=="其他")return recognized;}
  if(/^凤凰传奇/.test(n))return "其他";
  const bd=n.match(/^\[BD\](.+)$/i)?.[1];
- if(bd){const domestic=classifyChannel(bd);if(["央视","卫视","地方","港澳台"].includes(domestic))return domestic;if(/^经济科教/.test(bd))return "地方";}
+ if(bd&&isBdQualityName(bd))return classifyChannel(bd,g==="海外"?"":g);
  const country=n.match(/^[「【\[]([A-Z]{2})[」】\]]/i)?.[1]?.toUpperCase();
- if(country&&["HK","MO","TW"].includes(country))return "港澳台";
- if(country&&["US","CA","GB","UK","JP","KR","FR","DE","RU","AU","NZ","SG","MY","TH","VN","PH","ID","IN","IT","ES","PT","BR","MX","AR","TR","AE","SA","QA","ZA","NL","BE","CH","AT","SE","NO","DK","FI","PL","UA","RO","GR","IL","IR","PK","BD"].includes(country))return "海外";
+ if(country){const group=countryCategory(country);if(group)return group;}
  if(startsWithMainlandPlace(n))return n.includes("卫视")?"卫视":"地方";
  if(/^(CCTV|CGTN|CETV)/i.test(n)||/央视|央视频道/.test(g))return "央视";
  if(/港澳台|香港|澳门|台湾/.test(g)||/^(香港|澳门|台湾|港台|凤凰(?:中文|资讯|香港|卫视|欧洲|美洲)|翡翠|明珠|无线|有线|台视|中视|民视|公视|华视|中天|三立|东森|纬来|八大|年代|非凡|壹电视|靖天|靖洋|龙华|龙祥|人间|大爱|好消息|耀才|澳视|莲花|澳亚|TVB|TVBS|ViuTV|HOY|RTHK|TTV|CTV|CTS|FTV)/i.test(n))return "港澳台";
  if(isJapaneseChannel(n))return "海外";
- if(/^(CNN|BBC|NHK|KBS|SBS|MBC|TV5MONDE|FRANCE24|DW|ARIRANG|ALJAZEERA|NASA|CNBC|BLOOMBERG|FOXNEWS|SKYNEWS|EURONEWS|REUTERS|TRT|ABCNEWS|NBCNEWS|PBS)(?:\b|\d|[\u3400-\u9fff])/i.test(n)||/^(NHK|BBC|CNN|KBS|MBC|CNBC)/i.test(n)||/海外|国际频道|日本|韩国|朝鲜|美国|英国|法国|德国|俄罗斯|加拿大|澳大利亚|新加坡|马来西亚|泰国|越南|菲律宾|印尼|意大利|西班牙|葡萄牙|巴西|印度|阿联酋|土耳其|Japan|Korea|United States|United Kingdom|France|Germany|Russia|Canada|Australia/i.test(g)||/^(日本|韩国|朝鲜|美国|英国|法国|德国|俄罗斯|新加坡|马来西亚|泰国|越南|半岛|福克斯|彭博)/.test(n))return "海外";
+ if(/^(CNN|BBC|NHK|KBS|SBS|MBC|TV5MONDE|FRANCE24|DW|ARIRANG|ALJAZEERA|NASA|CNBC|BLOOMBERG|FOXNEWS|SKYNEWS|EURONEWS|REUTERS|TRT|ABCNEWS|NBCNEWS|PBS)(?:\b|\d|[\u3400-\u9fff])/i.test(n)||/^(NHK|BBC|CNN|KBS|MBC|CNBC|BLOOMBERG)/i.test(n)||/海外|国际频道|日本|韩国|朝鲜|美国|英国|法国|德国|俄罗斯|加拿大|澳大利亚|新加坡|马来西亚|泰国|越南|菲律宾|印尼|意大利|西班牙|葡萄牙|巴西|印度|阿联酋|土耳其|Japan|Korea|United States|United Kingdom|France|Germany|Russia|Canada|Australia/i.test(g)||/^(日本|韩国|朝鲜|美国|英国|法国|德国|俄罗斯|新加坡|马来西亚|泰国|越南|半岛|福克斯|彭博)/.test(n))return "海外";
  if(n.includes("卫视")||/卫视频道|卫视直播/.test(g))return "卫视";
  if(/地方|省级|市级|地面频道/.test(g)||/^(BRTV|东方电视|珠江|南方|兵团)/i.test(n))return "地方";
  return "其他";

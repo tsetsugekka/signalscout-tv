@@ -1,11 +1,11 @@
 import type {Channel} from './catalog';
-import {categoryPriority,compareChannelNames,isJapaneseChannel} from './channel-category';
+import {categoryPriority,compareChannelNames,channelInCategory} from './channel-category';
 
 export function isPrimaryChannel(channel:Channel){
  const name=channel.name.trimStart();
  if(name[0]!=="["&&name[0]!=="「"&&/^[\p{P}\p{S}]/u.test(name))return false;
  const exempt=channel.group==="港澳台"&&categoryPriority(name,channel.group)===0
-  ||channel.group==="海外"&&(categoryPriority(name,channel.group)<4||isJapaneseChannel(name));
+  ||channel.group==="海外"&&(categoryPriority(name,channel.group)<4||channelInCategory(channel,"日本"));
  return exempt||channel.sources.length>=3;
 }
 

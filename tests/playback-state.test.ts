@@ -219,3 +219,12 @@ test('line cards render catalog quality tags as compact plain labels',()=>{
  for(const q of s.qualities)assert.ok(html.includes(`class="source-quality" title="目录标注画质">${q}</span>`));
  assert.doesNotMatch(html,/\[1080p\]|\(720p\)/);assert.match(html,/线路 1/);
 });
+
+test('source cards retain BD quality and US country labels after cleaning channel names',async()=>{
+ const {parseTxt}=await import('../lib/catalog');
+ for(const [name,label,title] of [['[BD]bloomberg tv','BD','目录标注画质'],['「US」 Bloomberg TV+2','US','目录标注地区'],['[BD]经济科教','BD','目录标注画质']]){
+  const c=parseTxt(`${name},https://example.com/live`)[0];
+  const html=renderToStaticMarkup(createElement(SourceList,{channel:c,evaluation:context(),checks:{},hideFailed:false,onSelect:()=>{},onRecheck:()=>{}}));
+  assert.ok(html.includes(`title="${title}">${label}</span>`));if(label!=="US")assert.doesNotMatch(c.name,/^[\[「]/);
+ }
+});
