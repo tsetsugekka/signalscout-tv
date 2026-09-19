@@ -5,7 +5,7 @@ import { useEffect,useRef,useState } from "react";
 import { browserSources,normalizeName,mergeChannels,type Catalog,type Channel } from "./catalog";
 import { defaults,readLocal,writeLocal,recordSuccess,recordFailure,type LocalState } from "./local-state";
 import { PlayerEngine,connectMedia,fingerprint,type PlayerState } from "./player";
-import {rankedSources,sharedStatus,healthForDevice,mergeDeviceHealth,type DeviceHealth,type SharedHealth} from "./shared-health";
+import {deviceSourceVisible,rankedSources,healthForDevice,mergeDeviceHealth,type DeviceHealth,type SharedHealth} from "./shared-health";
 import {initialSourceChecks,nextSourceToCheck,type SourceCheck} from "./source-checks";
 export function useTV(){
  const [device,setDevice]=useState<DeviceClass>("pc");const [deviceHealth,setDeviceHealth]=useState<DeviceHealth>({});const deviceHealthRef=useRef<DeviceHealth>({});
@@ -113,7 +113,7 @@ export function useTV(){
  const toggleFavorite=()=>{const p=data.current;p.favorites=p.favorites.includes(selectedId)?p.favorites.filter(id=>id!==selectedId):[...p.favorites,selectedId];persistRef.current();};
  const setAuto=(value:boolean)=>{data.current.autoSwitch=value;if(engine.current)engine.current.auto=value;persistRef.current();};
  const setHideFailed=(value:boolean)=>{data.current.hideFailed=value;persistRef.current();};
- const hasFailed=(c:Channel)=>{const candidates=browserSources(c);return candidates.length>0&&candidates.every(s=>c.id===selectedId&&sourceChecks[s.id]?(sourceChecks[s.id].status==="failed"||sourceChecks[s.id].status!=="available"&&sharedStatus(sharedHealth[s.id])==="unstable"):(sharedStatus(sharedHealth[s.id])==="unstable"||(prefs.health[s.id]?.until||0)>Date.now()&&(prefs.health[s.id]?.failedAt||0)>(prefs.health[s.id]?.okAt||0)));};
+ const hasFailed=(c:Channel)=>{const candidates=browserSources(c),now=Date.now();return candidates.length>0&&candidates.every(s=>{const local=prefs.health[s.id];const check=c.id===selectedId?sourceChecks[s.id]:undefined;const effective=check||(local?.until>now&&(local.failedAt||0)>(local.okAt||0)?{status:"failed" as const}:undefined);return !deviceSourceVisible(effective,deviceHealth[s.id],device,true,now);});};
  const selected=catalog.channels.find(c=>c.id===selectedId)||catalog.channels[0];
  const isUnavailable=(c:Channel)=>{const r=prefs.unavailable[c.id];return !!r&&r.until>Date.now()&&r.fingerprint===fingerprint(c);};
  const lastSuccess=(c:Channel)=>Math.max(0,...browserSources(c).filter(s=>prefs.health[s.id]?.verifiedLive&&!(prefs.health[s.id]?.until>Date.now())).map(s=>prefs.health[s.id]?.okAt||0));

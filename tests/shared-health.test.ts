@@ -62,3 +62,19 @@ test('newer phone success does not override known PC instability for automatic a
  assert.equal(sharedStatus(healthForDevice(records,'pc',now).source,now),'unstable');
  assert.equal(sharedStatus(healthForDevice(records,'mobile',now).source,now),'available');
 });
+
+test('hide-failed uses PC instability on desktop, and either device instability on mobile',async()=>{
+ const {deviceSourceVisible:visible}=await import('../lib/shared-health');
+ const pcBad={pc:{okAt:0,failedAt:now},mobile:{okAt:now,failedAt:0}};
+ const phoneBad={pc:{okAt:now,failedAt:0},mobile:{okAt:0,failedAt:now}};
+ assert.equal(visible(undefined,pcBad,'pc',true,now),false);
+ assert.equal(visible(undefined,pcBad,'mobile',true,now),false);
+ assert.equal(visible({status:'available'},pcBad,'mobile',true,now),false);
+ assert.equal(visible(undefined,phoneBad,'pc',true,now),true);
+ assert.equal(visible(undefined,phoneBad,'mobile',true,now),false);
+ assert.equal(visible({status:'available'},phoneBad,'mobile',true,now),true);
+ assert.equal(visible(undefined,pcBad,'mobile',false,now),true);
+ assert.equal(visible(undefined,{},'mobile',true,now),true);
+ assert.equal(visible(undefined,{pc:{okAt:0,failedAt:now-SHARED_HEALTH_TTL}},'mobile',true,now),true);
+ assert.equal(visible({status:'failed'},undefined,'pc',true,now),false);
+});

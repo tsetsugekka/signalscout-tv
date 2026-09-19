@@ -40,3 +40,5 @@
 - Separate cross-device display priority from current-device automatic attempt order; place web-direct unsupported sources last.
 
 - Improve native HLS relay compatibility: complete playlist responses, media types, inconclusive live checks and playback diagnostics.
+
+- Apply device-specific instability filtering consistently to channels and source cards.

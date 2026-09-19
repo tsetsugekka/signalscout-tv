@@ -45,3 +45,9 @@ export function rankedSources(sources:Source[],checks:Record<string,SourceCheck>
 export function sharedSourceVisible(check:SourceCheck|undefined,entry:SharedHealthEntry|undefined,hideFailed:boolean,now=Date.now()){
  return !hideFailed||sourceRank(check,entry,now)!==2;
 }
+
+export function deviceSourceVisible(check:SourceCheck|undefined,entry:DeviceHealth[string]|undefined,device:DeviceClass,hideFailed:boolean,now=Date.now()){
+ if(!hideFailed)return true;
+ const unstable=(kind:DeviceClass)=>kind===device&&check?.status==='failed'?true:kind===device&&check?.status==='available'?false:sharedStatus(entry?.[kind],now)==='unstable';
+ return !unstable('pc')&&(device==='pc'||!unstable('mobile'));
+}

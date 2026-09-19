@@ -6,14 +6,14 @@ import {CheckCircle2,LoaderCircle,RefreshCw,Clock3,XCircle} from "lucide-react";
 import type {Channel} from "@/lib/catalog";
 import {type SourceCheck} from "@/lib/source-checks";
 import {deviceLabel,type DeviceClass} from "@/lib/device-class";
-import {rankedSources,sharedStatus,sharedSourceVisible,type SharedHealth,type DeviceHealth} from "@/lib/shared-health";
+import {rankedSources,sharedStatus,deviceSourceVisible,type SharedHealth,type DeviceHealth} from "@/lib/shared-health";
 const labels={waiting:"等待检测",pinging:"检测连通性",checking:"验证直播",available:"直播可播",failed:"不稳定",blocked:"待点击验证",unsupported:"网页直连受限",unconfirmed:"直播待确认"};
 const PAGE_SIZE=20;
 export function SourceList({device,deviceHealth,channel,checks,shared,hideFailed,activeSource,onSelect,onRecheck}:{device:DeviceClass;deviceHealth:DeviceHealth;channel:Channel;checks:Record<string,SourceCheck>;shared:SharedHealth;hideFailed:boolean;activeSource?:string;onSelect:(id:string)=>void;onRecheck:()=>void}){
  const [copied,setCopied]=useState("");const [copyError,setCopyError]=useState("");const [page,setPage]=useState(0);
  const copy=async(id:string,url:string)=>{try{await navigator.clipboard.writeText(url);setCopied(id);setCopyError("");}catch{setCopyError("复制失败，请选中地址手动复制。");}};
  const numbers=new Map(channel.sources.map((s,i)=>[s.id,s.number||i+1]));
- const visible=rankedSources(channel.sources,checks,shared,Date.now(),deviceHealth,device).map(source=>({source,index:numbers.get(source.id)!-1})).filter(({source})=>sharedSourceVisible(checks[source.id],shared[source.id],hideFailed));
+ const visible=rankedSources(channel.sources,checks,shared,Date.now(),deviceHealth,device).map(source=>({source,index:numbers.get(source.id)!-1})).filter(({source})=>deviceSourceVisible(checks[source.id],deviceHealth[source.id],device,hideFailed));
  const hidden=channel.sources.length-visible.length;const pages=Math.max(1,Math.ceil(visible.length/PAGE_SIZE));const currentPage=Math.min(page,pages-1);
  const activeIndex=visible.findIndex(({source})=>source.id===activeSource);const activePage=activeIndex<0?-1:Math.floor(activeIndex/PAGE_SIZE);
  const complete=channel.sources.filter(s=>checks[s.id]&&!["waiting","pinging","checking"].includes(checks[s.id].status)).length;
