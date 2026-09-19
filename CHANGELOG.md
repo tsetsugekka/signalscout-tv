@@ -62,3 +62,5 @@
 - Add three display modes; hide raw address actions and compact source cards without changing source numbers.
 - Add deterministic reversible channel keys and optional stable source-number links, with progressive catalog resolution.
 - Refresh the original five-panel state diagram wording to match the implemented behavior.
+
+- Make the full source card a single radio selection target, retaining disabled and keyboard behavior.
