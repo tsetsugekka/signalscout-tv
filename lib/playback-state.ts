@@ -11,7 +11,7 @@ export type Availability='recent'|'available'|'possible'|'unknown'|'unstable'|'u
 export type Evidence={status:Availability;origin?:'local'|'shared';okAt?:number;hintDevice?:DeviceClass};
 export type HostHealth=Map<string,Partial<Record<DeviceClass,number>>>;
 export type EvaluationContext={device:DeviceClass;local:Record<string,Health>;devices:DeviceHealth;checks:Record<string,SourceCheck>;hosts:HostHealth;now:number};
-export type SourceState={devices:Record<DeviceClass,Evidence>;current:Evidence;display:Evidence;reference?:DeviceClass};
+export type SourceState={devices:Record<DeviceClass,Evidence>;current:Evidence;display:Evidence;reference?:DeviceClass;communitySupport?:{sameDevice:boolean;evidence:Evidence}};
 const ranks:Record<Availability,number>={recent:0,available:1,possible:2,unknown:3,unstable:4,unsupported:5};
 export const isSuccess=(e:Evidence)=>e.status==='recent'||e.status==='available';
 export const successAge=(okAt:number,now=Date.now()):Availability=>now-okAt<RECENT_SUCCESS?'recent':'available';
@@ -57,14 +57,25 @@ export function evaluateSource(source:Source,ctx:EvaluationContext):SourceState{
  const reference=original[ctx.device].status==='unknown'&&isSuccess(original[other])?other:undefined;
  const current=reference?devices[reference]:own;
  const successes=Object.values(devices).filter(isSuccess).sort(compareEvidence);
- return {devices,current,display:successes[0]||current,reference};
+ const sameShared=sharedEvidence(ctx.devices[source.id]?.[ctx.device],ctx.now),otherShared=sharedEvidence(ctx.devices[source.id]?.[other],ctx.now);
+ const communitySupport=current.status==='unstable'&&current.origin==='local'?(isSuccess(sameShared)?{sameDevice:true,evidence:sameShared}:isSuccess(otherShared)?{sameDevice:false,evidence:otherShared}:undefined):undefined;
+ return {devices,current,display:successes[0]||current,reference,communitySupport};
 }
 export function evidenceLabel(e:Evidence){
  const owner=e.origin==='local'?'本机':e.origin==='shared'?'他人':'';
  return e.status==='recent'?`${owner}近期可播`:e.status==='available'?`${owner}可播`:e.status==='possible'?'可能可播':e.status==='unstable'?`${owner}不稳定`:e.status==='unsupported'?'网页直连受限':'待验证';
 }
-export function rankSourceStates(sources:Source[],states:Map<string,SourceState>){return [...sources].sort((a,b)=>compareEvidence(states.get(a.id)!.display,states.get(b.id)!.display));}
-export function sourceStateVisible(state:SourceState,device:DeviceClass,hideFailed:boolean){return !hideFailed||state.devices.pc.status!=='unstable'&&(device==='pc'||state.devices.mobile.status!=='unstable');}
+export function rankSourceStates(sources:Source[],states:Map<string,SourceState>){
+ // Keep usable successes first, then locally failed lines supported by other viewers.
+ const tier=(s:SourceState)=>s.communitySupport?2:evidenceRank(s.display)+(evidenceRank(s.display)>=2?1:0);
+ return [...sources].sort((a,b)=>{
+  const first=states.get(a.id)!,second=states.get(b.id)!;
+  const delta=tier(first)-tier(second);if(delta)return delta;
+  if(first.communitySupport&&second.communitySupport)return Number(second.communitySupport.sameDevice)-Number(first.communitySupport.sameDevice)||compareEvidence(first.communitySupport.evidence,second.communitySupport.evidence);
+  return compareEvidence(first.display,second.display);
+ });
+}
+export function sourceStateVisible(state:SourceState,device:DeviceClass,hideFailed:boolean){return !hideFailed||state.current.status!=='unsupported'&&state.devices.pc.status!=='unstable'&&(device==='pc'||state.devices.mobile.status!=='unstable');}
 export function channelInPlaybackView(channel:Channel,ctx:EvaluationContext,view:'local'|'shared'){
  const sources=browserSources(channel);
  const verified=view==='local'?sources.some(s=>isSuccess(localEvidence(ctx.local[s.id],ctx.checks[s.id],ctx.now))):channelHasSharedSuccess(channel,ctx.devices);

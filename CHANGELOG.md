@@ -77,3 +77,8 @@
 
 - Require ten distinct other browser failures to revoke shared success after its 24-hour protection period. Local failure remains immediate; PC/mobile votes stay separate.
 - Refresh previously aggregated instability under the new threshold without discarding newer reports.
+
+## Shared evidence in line ordering
+
+- Rank locally unstable lines with same-platform shared success before those with opposite-platform shared success or no shared success, preserving local failure, filters and source numbers.
+- Hide web-direct restricted sources and channels with no remaining visible lines in the hide-failed mode.

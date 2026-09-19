@@ -183,3 +183,32 @@ test('a mobile success retains the unknown PC possible hint without fabricating 
  before.devices[s.id]={pc:{okAt:0,failedAt:now}};
  assert.equal(evaluateSource(s,before).devices.pc.status,'unstable');
 });
+
+test('locally failed lines rank same-platform shared success before cross-platform success and no support',()=>{
+ for(const device of ['pc','mobile'] as const){
+  const other=device==='pc'?'mobile':'pc';
+  const good=source('https://good.example/live',2),sameOld=source('https://same-old.example/live',13),sameFresh=source('https://same-fresh.example/live',18),cross=source('https://cross.example/live',3),failed=source('https://failed.example/live',14),possible=source('https://hint.example/live',15),unsupported=source('https://bad.example/vod.mp4',19);
+  const sources=[failed,cross,sameOld,possible,sameFresh,unsupported,good];
+  const ctx=context({device,local:Object.fromEntries([sameOld,sameFresh,cross,failed].map(s=>[s.id,{...success(),failedAt:now}])),devices:{[sameOld.id]:{[device]:{okAt:now-2*RECENT_SUCCESS,failedAt:0}},[sameFresh.id]:{[device]:{okAt:now-1,failedAt:0}},[cross.id]:{[other]:{okAt:now,failedAt:0}},[good.id]:{[device]:{okAt:now-3*RECENT_SUCCESS,failedAt:0}}},hosts:new Map([['hint.example',{[device]:now}]])});
+  const states=new Map(sources.map(s=>[s.id,evaluateSource(s,ctx)]));
+  const expected=[2,18,13,3,15,14,19];
+  for(let i=0;i<sources.length;i++)assert.deepEqual(rankSourceStates([...sources.slice(i),...sources.slice(0,i)],states).map(s=>s.number),expected);
+  for(const s of [sameOld,sameFresh,cross]){assert.equal(states.get(s.id)!.current.status,'unstable');assert.equal(sourceStateVisible(states.get(s.id)!,device,true),false);}
+  assert.equal(evaluateChannel(channel([sameOld]),ctx).signal,'unavailable');
+  assert.equal(states.get(sameOld.id)!.display.status,'unstable');
+  assert.equal(states.get(possible.id)!.communitySupport,undefined);
+ }
+});
+
+test('hide-failed removes restricted sources even with successful reports, but keeps unknowns',()=>{
+ for(const device of ['pc','mobile'] as const){
+  const file=source('https://a.example/file.mp4',1),restricted=source('https://b.example/live',2),unknown=source('https://c.example/live',3);
+  const ctx=context({device,checks:{[restricted.id]:{status:'unsupported'}},devices:{[restricted.id]:{pc:{okAt:now,failedAt:0},mobile:{okAt:now,failedAt:0}}}});
+  for(const s of [file,restricted]){const state=evaluateSource(s,ctx);assert.equal(sourceStateVisible(state,device,true),false);assert.equal(sourceStateVisible(state,device,false),true);}
+  assert.equal(sourceStateVisible(evaluateSource(unknown,ctx),device,true),true);
+  const props={channel:channel([file,restricted,unknown]),evaluation:ctx,checks:ctx.checks,onSelect:()=>{},onRecheck:()=>{}};
+  const hidden=renderToStaticMarkup(createElement(SourceList,{...props,hideFailed:true}));
+  assert.doesNotMatch(hidden,/线路 [12]</);assert.match(hidden,/线路 3</);assert.match(hidden,/已隐藏 2 条失败、不稳定或网页直连受限线路/);
+  const all=renderToStaticMarkup(createElement(SourceList,{...props,hideFailed:false}));assert.match(all,/线路 1</);assert.match(all,/线路 2</);
+ }
+});

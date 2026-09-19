@@ -132,7 +132,7 @@ export function useTV(){
  const toggleFavorite=()=>{const p=data.current;p.favorites=p.favorites.includes(selectedId)?p.favorites.filter(id=>id!==selectedId):[...p.favorites,selectedId];persistRef.current();};
  const setAuto=(value:boolean)=>{data.current.autoSwitch=value;if(engine.current)engine.current.auto=value;persistRef.current();};
  const setSourceFilter=(value:SourceFilter)=>{data.current.sourceFilter=value;persistRef.current();};
- const hasFailed=(c:Channel)=>{const candidates=browserSources(c);return candidates.length>0&&candidates.every(s=>!sourceStateVisible(evaluateSource(s,evaluation),device,true));};
+ const hasFailed=(c:Channel)=>c.sources.every(s=>!sourceStateVisible(evaluateSource(s,evaluation),device,true));
  const selected=catalog.channels.find(c=>c.id===selectedId)||catalog.channels[0];
  const isUnavailable=(c:Channel)=>{const r=prefs.unavailable[c.id];return !!r&&r.until>Date.now()&&r.fingerprint===fingerprint(c);};
  const lastSuccess=(c:Channel)=>Math.max(0,...browserSources(c).filter(s=>prefs.health[s.id]?.verifiedLive&&(prefs.health[s.id]?.okAt||0)>(prefs.health[s.id]?.failedAt||0)).map(s=>prefs.health[s.id]?.okAt||0));
