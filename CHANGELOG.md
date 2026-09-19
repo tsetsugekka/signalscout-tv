@@ -38,3 +38,5 @@
 - Reduce GitHub catalog cache freshness from six hours to one hour.
 
 - Separate cross-device display priority from current-device automatic attempt order; place web-direct unsupported sources last.
+
+- Improve native HLS relay compatibility: complete playlist responses, media types, inconclusive live checks and playback diagnostics.

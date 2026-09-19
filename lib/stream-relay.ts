@@ -47,8 +47,8 @@ export function validateAddresses(addresses:string[],expectedAddress?:string){
  for(const address of addresses){publicUrl(`http://${address.includes(':')?'['+address+']':address}/`);if(expectedAddress&&address!==expectedAddress)throw new Error("DNS address mismatch");}
 }
 export class RelayConnectionError extends Error {}
-export async function fetchRedirects(url:string,request:Request,checkHost:(u:URL,expectedAddress?:string)=>Promise<void>,fetcher:typeof fetch=fetch){
- let target=publicUrl(url);const deadline=AbortSignal.timeout(35000);const headers=new Headers({Accept:"*/*"});const range=request.headers.get("Range");if(range){if(!/^bytes=(?:\d+-\d*|-\d+)$/.test(range))throw new Error("Invalid byte range");headers.set("Range",range);}
+export async function fetchRedirects(url:string,request:Request,checkHost:(u:URL,expectedAddress?:string)=>Promise<void>,fetcher:typeof fetch=fetch,forwardRange=true){
+ let target=publicUrl(url);const deadline=AbortSignal.timeout(35000);const headers=new Headers({Accept:"*/*"});const range=request.headers.get("Range");if(range&&forwardRange){if(!/^bytes=(?:\d+-\d*|-\d+)$/.test(range))throw new Error("Invalid byte range");headers.set("Range",range);}
  for(let hop=0;hop<=5;hop++){
   const network=networkTarget(target);
   try{await checkHost(network.url,network.expectedAddress);}catch{throw new RelayConnectionError(`转发域名解析失败（${target.hostname}）`);}
@@ -59,4 +59,13 @@ export async function fetchRedirects(url:string,request:Request,checkHost:(u:URL
  }
  throw new Error("Too many redirects");
 }
-export function assetHeaders(upstream:Headers){const headers=new Headers({"Cache-Control":"no-store","Content-Type":"application/octet-stream","X-Content-Type-Options":"nosniff","Content-Security-Policy":"default-src 'none'; sandbox"});for(const name of ["Content-Range","Accept-Ranges","Content-Encoding"])if(upstream.has(name))headers.set(name,upstream.get(name)!);return headers;}
+export function assetHeaders(upstream:Headers,url=''){
+ const headers=new Headers({"Cache-Control":"no-store","Content-Type":"application/octet-stream","X-Content-Type-Options":"nosniff","Content-Security-Policy":"default-src 'none'; sandbox"});
+ const type=(upstream.get('Content-Type')||'').split(';')[0].trim().toLowerCase();
+ const mediaTypes=new Set(['video/mp2t','video/mp4','audio/mp4','audio/aac','audio/aacp','audio/mpeg','audio/ac3','audio/eac3','text/vtt']);
+ const extension=url?new URL(url).pathname.split('.').pop()?.toLowerCase():'';
+ const byExtension:Record<string,string>={ts:'video/mp2t',m4s:'video/mp4',mp4:'video/mp4',aac:'audio/aac',mp3:'audio/mpeg',vtt:'text/vtt'};
+ if(mediaTypes.has(type))headers.set('Content-Type',type);else if(extension&&byExtension[extension])headers.set('Content-Type',byExtension[extension]);
+ for(const name of ["Content-Range","Accept-Ranges","Content-Encoding"])if(upstream.has(name))headers.set(name,upstream.get(name)!);
+ return headers;
+}

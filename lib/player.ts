@@ -23,7 +23,7 @@ export function livePlaylistAdvanced(before:string,after:string){
  const old=segments(before).map(original),next=segments(after).map(original);
  return sequence(after)>sequence(before)||(!!next.length&&next[next.length-1]!==old[old.length-1]);
 }
-async function inspectNative(url:string,signal:AbortSignal,depth=0,reachable?:(ms:number)=>void):Promise<boolean>{
+async function inspectNative(url:string,signal:AbortSignal,depth=0,reachable?:(ms:number)=>void):Promise<boolean|undefined>{
  const began=performance.now();const r=await fetch(url,{signal,cache:"no-store"});reachable?.(performance.now()-began);if(!r.ok)throw new Error("Playlist unavailable");
  if(/video\/(mp4|webm)|audio\//i.test(r.headers.get("Content-Type")||"")||/\.(mp4|m4v|mov|webm)(?:[?#]|$)/i.test(r.url))return false;
  const text=await r.text();const kind=playlistType(text);
@@ -31,7 +31,7 @@ async function inspectNative(url:string,signal:AbortSignal,depth=0,reachable?:(m
  if(kind!=="live")return false;
  const seconds=Number(text.match(/#EXT-X-TARGETDURATION:([\d.]+)/)?.[1]||6);
  await new Promise<void>((resolve,reject)=>{const cancel=()=>{clearTimeout(timer);reject(new DOMException("Aborted","AbortError"));};const timer=setTimeout(()=>{signal.removeEventListener("abort",cancel);resolve();},Math.min(12000,Math.max(1000,seconds*1000+500)));if(signal.aborted)cancel();else signal.addEventListener("abort",cancel,{once:true});});
- const second=await fetch(r.url||url,{signal,cache:"no-store"});if(!second.ok)throw new Error("Playlist reload unavailable");return livePlaylistAdvanced(text,await second.text());
+ const second=await fetch(r.url||url,{signal,cache:"no-store"});if(!second.ok)throw new Error("Playlist reload unavailable");const updated=await second.text();if(playlistType(updated)==="vod")return false;return livePlaylistAdvanced(text,updated)?true:undefined;
 }
 // Verification requires advancing video frames, never just a successful manifest request.
 export function connectMedia(video:HTMLVideoElement,url:string,callbacks:Callbacks,probe=false):Connection{
@@ -55,7 +55,7 @@ export function connectMedia(video:HTMLVideoElement,url:string,callbacks:Callbac
  const onFrame=()=>{frames++;sample();if(!disposed)frameId=video.requestVideoFrameCallback(onFrame);};
  const onPause=()=>{if(!disposed&&!video.ended){userPaused=true;if(verified||unconfirmed)callbacks.pause?.();}};
  const onPlaying=()=>{userPaused=false;permissionBlocked=false;lastProgress=performance.now();if(verified||unconfirmed)callbacks.playing?.();};
- const onError=()=>fail();
+ const onError=()=>{const code=video.error?.code;if(code===1)return;fail(code===2?"媒体网络请求失败（错误 2）":code===3?"浏览器无法解码此视频（错误 3）":code===4?"媒体格式不支持或播放地址无法加载（错误 4）":"视频播放中断");};
  video.addEventListener("timeupdate",sample);video.addEventListener("pause",onPause);video.addEventListener("playing",onPlaying);video.addEventListener("error",onError);video.addEventListener("ended",onError);
  if("requestVideoFrameCallback" in video)frameId=video.requestVideoFrameCallback(onFrame);
  if(probe)video.muted=true;

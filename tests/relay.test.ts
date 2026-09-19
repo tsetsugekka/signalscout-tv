@@ -15,3 +15,16 @@ test('playlist size is bounded and relay signature changes do not fake live adva
 test('IP entry uses a verified DNS alias while relative redirect bases retain original URLs',async()=>{const {networkTarget,validateAddresses}=await import('../lib/stream-relay');const original='http://42.94.210.135:7788/live/index.m3u8';const target=networkTarget(publicUrl(original));assert.equal(target.url.href,'http://42-94-210-135.sslip.io:7788/live/index.m3u8');assert.equal(target.expectedAddress,'42.94.210.135');validateAddresses(['42.94.210.135'],target.expectedAddress);assert.throws(()=>validateAddresses(['8.8.8.8'],target.expectedAddress));assert.throws(()=>validateAddresses(['127.0.0.1']));assert.equal(networkTarget(publicUrl('https://42.94.210.135/live')).url.hostname,'42.94.210.135');const calls:string[]=[];const result=await fetchRedirects(original,new Request('https://site.example'),async(u,expected)=>{assert.equal(expected,'42.94.210.135');assert.equal(u.hostname,'42-94-210-135.sslip.io');},(async(url)=>{calls.push(String(url));return calls.length===1?new Response(null,{status:302,headers:{Location:'next.m3u8'}}):new Response('#EXTM3U');}) as typeof fetch);assert.equal(result.url,'http://42.94.210.135:7788/live/next.m3u8');assert.equal(calls[1],'http://42-94-210-135.sslip.io:7788/live/next.m3u8');});
 
 test('relay reports the failing redirect hop and host without exposing query credentials',async()=>{let calls=0;await assert.rejects(()=>fetchRedirects('http://entry.example/live?token=private',new Request('https://site.example'),async()=>{},(async()=>{if(++calls===1)return new Response(null,{status:302,headers:{Location:'http://cdn.example/live?token=private'}});throw new DOMException('Timed out','TimeoutError');}) as typeof fetch),error=>{assert.match((error as Error).message,/第 2 跳：cdn.example/);assert.ok(!(error as Error).message.includes('private'));return true;});});
+
+test('native playlist byte probes never truncate the upstream manifest, including redirects',async()=>{
+ const ranges:Array<string|null>=[];let n=0;
+ const result=await fetchRedirects('https://entry.example/live',new Request('https://site.example/api/stream',{headers:{Range:'bytes=0-1'}}),async()=>{},(async(_url,init)=>{ranges.push(new Headers(init?.headers).get('Range'));return ++n===1?new Response(null,{status:302,headers:{Location:'https://cdn.example/live.m3u8'}}):new Response('#EXTM3U\n#EXTINF:6,\na.ts');}) as typeof fetch,false);
+ assert.deepEqual(ranges,[null,null]);assert.match(await result.response.text(),/#EXTINF/);
+});
+test('relay preserves safe media types and byte ranges without serving active content',()=>{
+ assert.equal(assetHeaders(new Headers({'Content-Type':'video/MP2T'})).get('Content-Type'),'video/mp2t');
+ assert.equal(assetHeaders(new Headers({'Content-Type':'application/octet-stream'}),'https://cdn.example/seg.ts?t=1').get('Content-Type'),'video/mp2t');
+ assert.equal(assetHeaders(new Headers({'Content-Type':'audio/mp4'}),'https://cdn.example/audio.m4s').get('Content-Type'),'audio/mp4');
+ assert.equal(assetHeaders(new Headers({'Content-Type':'text/html'}),'https://cdn.example/key').get('Content-Type'),'application/octet-stream');
+ assert.equal(assetHeaders(new Headers({'Content-Range':'bytes 0-1/100'})).get('Content-Range'),'bytes 0-1/100');
+});

@@ -70,3 +70,15 @@ test('desktop native probe waits for live inspection before announcing verified 
  const c=connectMedia(v as unknown as HTMLVideoElement,channel.sources[0].url,{verified:()=>verified++,unconfirmed:()=>unconfirmed++,failure:()=>assert.fail('unexpected failure'),blocked:()=>{}},true);
  try{v.advance(1);v.advance(4);assert.equal(unconfirmed,0);await waitFor(()=>verified===1);assert.equal(unconfirmed,0);}finally{c.stop();}
 });
+
+test('one unchanged native playlist sample is inconclusive, not a playback failure',async()=>{
+ const old=globalThis.fetch;let requests=0,failed=0,verified=0,unconfirmed=0;
+ Object.defineProperty(globalThis,'fetch',{configurable:true,value:async()=>{requests++;return new Response(manifest,{headers:{'Content-Type':'application/vnd.apple.mpegurl'}});}});
+ const v=new Video(),c=connectMedia(v as unknown as HTMLVideoElement,channel.sources[0].url,{verified:()=>verified++,unconfirmed:()=>unconfirmed++,failure:()=>failed++,blocked:()=>{}});
+ try{await waitFor(()=>requests===2);await tick();v.advance(1);v.advance(4);assert.equal(failed,0);assert.equal(verified,0);assert.equal(unconfirmed,1);}finally{c.stop();Object.defineProperty(globalThis,'fetch',{configurable:true,value:old});}
+});
+test('native decode failures include a diagnostic code',()=>{
+ const v=new Video();Object.defineProperty(v,'error',{value:{code:3}});let reason='';
+ const c=connectMedia(v as unknown as HTMLVideoElement,channel.sources[0].url,{verified:()=>{},failure:r=>reason=r||'',blocked:()=>{}});
+ try{v.dispatchEvent(new Event('error'));assert.match(reason,/解码.*3/);}finally{c.stop();}
+});
