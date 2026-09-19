@@ -5,7 +5,7 @@ export function isPrimaryChannel(channel:Channel){
  const name=channel.name.trimStart();
  if(name[0]!=="["&&/^[\p{P}\p{S}]/u.test(name))return false;
  const exempt=channel.group==="港澳台"&&categoryPriority(name,channel.group)===0
-  ||channel.group==="海外"&&categoryPriority(name,channel.group)<4;
+  ||channel.group==="海外"&&categoryPriority(name,channel.group)<=4;
  return exempt||channel.sources.length>=3;
 }
 

@@ -30,7 +30,7 @@ test('category pinning uses requested order without moving Phoenix Legend out of
 test('default channel list requires three sources except Phoenix and prioritized overseas news',async()=>{
  const {isPrimaryChannel}=await import('../lib/channel-list');
  const channel=(name:string,group:string,count:number)=>({id:name,name,title:'',group,sources:Array.from({length:count},(_,i)=>({id:String(i),url:`https://example.com/${i}`}))});
- for(const [name,group] of [['CCTV5','央视'],['CCTV5+','央视'],['北京卫视','卫视'],['北京新闻','地方'],['NHK','海外'],['日本电视','海外'],['普通频道','其他']]){
+ for(const [name,group] of [['CCTV5','央视'],['CCTV5+','央视'],['北京卫视','卫视'],['北京新闻','地方'],['普通频道','其他']]){
   assert.equal(isPrimaryChannel(channel(name,group,2)),false,name);assert.equal(isPrimaryChannel(channel(name,group,3)),true,name);
  }
  for(const [name,group] of [['凤凰中文','港澳台'],['Bloomberg','海外'],['彭博','海外'],['CNBC','海外'],['CNN','海外'],['BBC','海外']])assert.equal(isPrimaryChannel(channel(name,group,1)),true,name);
@@ -38,20 +38,20 @@ test('default channel list requires three sources except Phoenix and prioritized
  for(const prefix of ['.','"',"'",'。','“','★','【'])assert.equal(isPrimaryChannel(channel(prefix+'CNN','海外',5)),false,prefix);
  assert.equal(isPrimaryChannel(channel('  .CNN','海外',5)),false);
  assert.equal(isPrimaryChannel(channel('[US] CNN','海外',1)),true);
- assert.equal(isPrimaryChannel(channel('[JP] NHK','海外',2)),false);
+ assert.equal(isPrimaryChannel(channel('[JP] NHK','海外',2)),true);
  assert.equal(isPrimaryChannel(channel('[JP] NHK','海外',3)),true);
 });
 test('more and search reveal deferred channels without changing order inside each group',async()=>{
  const {channelListPage}=await import('../lib/channel-list');
  const channels=['.CNN','BBC','NHK','CCTV5'].map((name,i)=>({id:name,name,title:'',group:i<3?'海外':'央视',sources:Array.from({length:i===3?3:1},(_,n)=>({id:String(n),url:`https://example.com/${n}`}))}));
  const ids=(page:ReturnType<typeof channelListPage>)=>page.visible.map(c=>c.id);
- assert.deepEqual(ids(channelListPage(channels,false,false,80)),['BBC','CCTV5']);
- assert.equal(channelListPage(channels,false,false,80).remaining,2);
- assert.deepEqual(ids(channelListPage(channels,false,true,80)),['BBC','CCTV5','.CNN','NHK']);
+ assert.deepEqual(ids(channelListPage(channels,false,false,80)),['BBC','NHK','CCTV5']);
+ assert.equal(channelListPage(channels,false,false,80).remaining,1);
+ assert.deepEqual(ids(channelListPage(channels,false,true,80)),['BBC','NHK','CCTV5','.CNN']);
  assert.deepEqual(ids(channelListPage(channels,true,false,80)),channels.map(c=>c.id));
  const deferred=channels.filter(c=>['.CNN','NHK'].includes(c.id));
- assert.equal(channelListPage(deferred,false,false,80).remaining,2);
- assert.deepEqual(ids(channelListPage(deferred,false,true,1)),['.CNN']);
+ assert.equal(channelListPage(deferred,false,false,80).remaining,1);
+ assert.deepEqual(ids(channelListPage(deferred,false,true,1)),['NHK']);
  assert.equal(channelListPage(deferred,false,true,1).remaining,1);
 });
 
@@ -102,3 +102,17 @@ test('one local failure cancels local availability even after cooldown; success 
  recordFailure(s,'u',2);s.health.u.until=0;assert.equal(localSourceCheck({status:'waiting'},s.health.u)?.status,'failed');
  recordSuccess(s,'u',3);assert.equal(localSourceCheck(undefined,s.health.u)?.status,'available');
 });
+
+test('BD quality tags cannot override recognizable domestic station identity',async()=>{
+ const {classifyChannel}=await import('../lib/channel-category');
+ for(const name of ['[BD]安徽卫视','[BD]北京卫视','[BD]东方卫视'])assert.equal(classifyChannel(name,'海外'),'卫视');
+ for(const name of ['[BD]揭阳综合','[BD]潮州综合','[BD]荆门新闻综合','[BD]江津新闻综合','[BD]经济科教'])assert.equal(classifyChannel(name,'海外'),'地方');
+ assert.equal(classifyChannel('[BD]Bangla TV'),'海外');
+});
+test('Japanese station classification matches its pinning while avoiding TBS Seoul and US call signs',async()=>{
+ const {classifyChannel,categoryPriority,isJapaneseChannel}=await import('../lib/channel-category');
+ for(const name of ['BS-TBS','NHK World Premium','TOKYOMXチャンネル','WOWOWシネマ','TBS NEWS','BS11']){assert.equal(classifyChannel(name,'其他'),'海外');assert.equal(categoryPriority(name,'海外'),4);}
+ assert.equal(isJapaneseChannel('TBSSeoul'),false);assert.equal(isJapaneseChannel('KTBS-TV ABC3'),false);
+});
+
+test('Japanese channels are exempt from the three-source threshold',async()=>{const {isPrimaryChannel}=await import('../lib/channel-list');for(const name of ['NHK','BS-TBS','WOWOWシネマ'])assert.equal(isPrimaryChannel({id:name,name,title:'',group:'海外',sources:[{id:'u',url:'https://example.com/u'}]}),true);});

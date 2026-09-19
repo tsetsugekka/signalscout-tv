@@ -44,3 +44,5 @@
 - Apply device-specific instability filtering consistently to channels and source cards.
 
 - Add protected shared success with distinct-browser failure quorum, persistent local verification until local failure, and a shared-playable channel view.
+
+- Correct ambiguous BD-prefixed domestic categories and Japanese station recognition; exempt Japanese channels from the source-count threshold.
